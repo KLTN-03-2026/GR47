@@ -1,0 +1,229 @@
+import { useState } from "react";
+import {
+    MessageSquareWarning, Search, RefreshCcw,
+    Trash2, CheckCircle2, ShieldAlert, Star,
+    User, AlertTriangle, ArrowRight
+} from "lucide-react";
+
+export const ManageDisputes = () => {
+    // Trạng thái thông báo
+    const [notification, setNotification] = useState({ type: "", message: "" });
+
+    // Dữ liệu giả lập Danh sách khiếu nại (Mục 1)
+    const [disputes, setDisputes] = useState([
+        {
+            id: "DP-1001", orderId: "BK-8899",
+            client: "Lê Minh Tuấn", cleaner: "Nguyễn Văn A",
+            reason: "Cleaner đến trễ 45 phút và dọn không sạch khu vực bếp.",
+            review: "Dịch vụ quá tệ, thái độ nhân viên lồi lõm!", rating: 1,
+            isRefunded: false, isReviewHidden: false, status: "PENDING"
+        },
+        {
+            id: "DP-1002", orderId: "BK-7722",
+            client: "Trần Thị B", cleaner: "Phạm Hữu D",
+            reason: "Bị mất một số vật dụng nhỏ sau khi dọn.",
+            review: "Mọi người cẩn thận tài sản khi gọi thợ này.", rating: 2,
+            isRefunded: false, isReviewHidden: false, status: "PENDING"
+        },
+        {
+            id: "DP-1003", orderId: "BK-6633",
+            client: "Ngô Thanh E", cleaner: "Lê Văn C",
+            reason: "Spam bình luận không hợp lệ.",
+            review: "Cho vay tín chấp lãi suất thấp, LH 09xxx...", rating: 5,
+            isRefunded: true, isReviewHidden: true, status: "RESOLVED"
+        }
+    ]);
+
+    const [searchTerm, setSearchTerm] = useState("");
+
+    const showToast = (type, message) => {
+        setNotification({ type, message });
+        setTimeout(() => setNotification({ type: "", message: "" }), 3000);
+    };
+
+    // Hoạt động: Hoàn tiền (Mục 2)
+    const handleRefund = (id) => {
+        if (!window.confirm("Xác nhận hoàn tiền cho Khách hàng của đơn này?")) return;
+
+        setDisputes(disputes.map(item =>
+            item.id === id ? { ...item, isRefunded: true, status: "RESOLVED" } : item
+        ));
+        showToast("success", `Đã xử lý HOÀN TIỀN thành công cho khiếu nại ${id}.`);
+    };
+
+    // Hoạt động: Xóa bình luận (Mục 3)
+    const handleDeleteReview = (id) => {
+        if (!window.confirm("Bạn có chắc chắn muốn ẨN/XÓA đánh giá này khỏi hệ thống?")) return;
+
+        setDisputes(disputes.map(item =>
+            item.id === id ? { ...item, isReviewHidden: true } : item
+        ));
+        showToast("success", `Đã ẨN đánh giá vi phạm của khiếu nại ${id}.`);
+    };
+
+    const filteredDisputes = disputes.filter(dp =>
+        dp.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        dp.client.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    return (
+        <div className="space-y-6 animate-fade-in-up">
+
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                <div>
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                        <MessageSquareWarning size={24} className="text-orange-500" /> Xử lý Khiếu nại & Đánh giá
+                    </h1>
+                    <p className="text-sm font-medium text-slate-500 mt-1">
+                        Giải quyết tranh chấp, hoàn tiền và kiểm duyệt các đánh giá rác.
+                    </p>
+                </div>
+
+                <div className="relative w-full sm:w-64">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <Search size={18} />
+                    </div>
+                    <input
+                        type="text" placeholder="Tìm theo ID, Khách hàng..."
+                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none text-sm transition-all"
+                        value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+            </div>
+
+            {/* Thông báo Toast */}
+            {notification.message && (
+                <div className={`p-4 rounded-xl flex items-center gap-3 text-sm font-bold shadow-sm border animate-shake
+          ${notification.type === "error" ? "bg-red-50 border-red-200 text-red-600" : "bg-emerald-50 border-emerald-200 text-emerald-700"}`}>
+                    {notification.type === "error" ? <ShieldAlert size={20} /> : <CheckCircle2 size={20} />}
+                    {notification.message}
+                </div>
+            )}
+
+            {/* Mục 1: Table - Danh sách khiếu nại */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse min-w-[800px]">
+                        <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-widest font-black">
+                                <th className="p-4 w-1/4">Thông tin Đơn & Đối tượng</th>
+                                <th className="p-4 w-1/3">Nội dung Khiếu nại / Review</th>
+                                <th className="p-4 text-center w-1/6">Trạng thái</th>
+                                <th className="p-4 text-right">Thao tác xử lý</th>
+                            </tr>
+                        </thead>
+                        <tbody className="text-sm">
+                            {filteredDisputes.length === 0 ? (
+                                <tr>
+                                    <td colSpan="4" className="p-8 text-center text-slate-400 font-medium">
+                                        <CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-400" />
+                                        Tuyệt vời! Hiện không có khiếu nại nào cần xử lý.
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredDisputes.map((dp) => (
+                                    <tr key={dp.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+
+                                        {/* Cột 1: Thông tin */}
+                                        <td className="p-4">
+                                            <div className="flex flex-col gap-1.5">
+                                                <span className="font-black text-slate-900">#{dp.id}</span>
+                                                <span className="text-xs font-bold text-slate-500 flex items-center gap-1">
+                                                    Đơn: <span className="text-blue-600 cursor-pointer hover:underline">{dp.orderId}</span>
+                                                </span>
+                                                <div className="mt-2 space-y-1">
+                                                    <p className="text-xs font-medium text-slate-600 flex items-center gap-1">
+                                                        <User size={12} /> <span className="font-bold">Khách:</span> {dp.client}
+                                                    </p>
+                                                    <p className="text-xs font-medium text-slate-600 flex items-center gap-1">
+                                                        <ArrowRight size={12} className="text-slate-400" /> <span className="font-bold">Đối tác:</span> {dp.cleaner}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        {/* Cột 2: Nội dung & Review */}
+                                        <td className="p-4">
+                                            <div className="space-y-3">
+                                                {/* Lý do khiếu nại */}
+                                                <div className="bg-orange-50 border border-orange-100 p-2.5 rounded-lg">
+                                                    <p className="text-xs font-bold text-orange-800 flex items-center gap-1 mb-1">
+                                                        <AlertTriangle size={12} /> Lý do khiếu nại:
+                                                    </p>
+                                                    <p className="text-xs font-medium text-orange-900">{dp.reason}</p>
+                                                </div>
+
+                                                {/* Đánh giá (Review) */}
+                                                <div className={`p-2.5 rounded-lg border ${dp.isReviewHidden ? 'bg-slate-100 border-slate-200' : 'bg-white border-slate-200'}`}>
+                                                    <div className="flex items-center gap-1 mb-1">
+                                                        {[...Array(5)].map((_, i) => (
+                                                            <Star key={i} size={12} className={i < dp.rating ? "text-yellow-400 fill-yellow-400" : "text-slate-200"} />
+                                                        ))}
+                                                        {dp.isReviewHidden && <span className="ml-2 text-[10px] font-bold text-red-500 bg-red-100 px-1.5 rounded">(Đã ẩn)</span>}
+                                                    </div>
+                                                    <p className={`text-xs font-medium ${dp.isReviewHidden ? 'text-slate-400 italic line-through' : 'text-slate-700'}`}>
+                                                        "{dp.review}"
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        {/* Cột 3: Trạng thái */}
+                                        <td className="p-4 text-center align-middle">
+                                            {dp.status === "RESOLVED" ? (
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-widest rounded-full">
+                                                    <CheckCircle2 size={12} /> Đã giải quyết
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-orange-100 text-orange-700 text-[10px] font-black uppercase tracking-widest rounded-full animate-pulse">
+                                                    Chờ xử lý
+                                                </span>
+                                            )}
+                                            {dp.isRefunded && (
+                                                <div className="mt-2 text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full inline-block">
+                                                    Đã hoàn tiền
+                                                </div>
+                                            )}
+                                        </td>
+
+                                        {/* Cột 4: Thao tác */}
+                                        <td className="p-4 align-middle">
+                                            <div className="flex flex-col items-end gap-2">
+                                                {/* Mục 2: Button Hoàn tiền */}
+                                                <button
+                                                    onClick={() => handleRefund(dp.id)}
+                                                    disabled={dp.isRefunded}
+                                                    className={`w-36 px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all
+                            ${dp.isRefunded
+                                                            ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                                            : "bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white"}`}
+                                                >
+                                                    <RefreshCcw size={14} /> {dp.isRefunded ? "Đã Refund" : "Hoàn tiền (Refund)"}
+                                                </button>
+
+                                                {/* Mục 3: Button Xóa bình luận */}
+                                                <button
+                                                    onClick={() => handleDeleteReview(dp.id)}
+                                                    disabled={dp.isReviewHidden}
+                                                    className={`w-36 px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all
+                            ${dp.isReviewHidden
+                                                            ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                                            : "bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white"}`}
+                                                >
+                                                    <Trash2 size={14} /> {dp.isReviewHidden ? "Đã Xóa/Ẩn" : "Xóa Review"}
+                                                </button>
+                                            </div>
+                                        </td>
+
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    );
+};
