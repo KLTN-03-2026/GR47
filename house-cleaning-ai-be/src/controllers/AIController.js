@@ -1,4 +1,5 @@
 // src/controllers/AIController.js
+import AIConfig from '../models/AIConfigModel.js'; // Nhớ import Model cấu hình vào nhé!
 
 export const analyzeRoomImage = async (req, res) => {
     try {
@@ -6,10 +7,17 @@ export const analyzeRoomImage = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Vui lòng cung cấp ảnh.' });
         }
 
-        const API_KEY = process.env.AI_API_KEY;
-        // SỬA Ở ĐÂY: Dùng v1 thay vì v1beta
-        const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+        // 1. LẤY CẤU HÌNH GIÁ MỚI NHẤT TỪ DATABASE
+        let currentConfig = await AIConfig.findOne({ Is_Active: true });
 
+        // Nếu lỡ Database trống chưa có dòng nào, tạo luôn fallback mặc định để code không bị "chết"
+        if (!currentConfig) {
+            currentConfig = { Base_Price: 20000, Medium_Factor: 1.2, High_Factor: 1.5 };
+        }
+
+        // 2. GỌI API GEMINI AI
+        const API_KEY = process.env.AI_API_KEY;
+        const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
         const base64Image = req.file.buffer.toString("base64");
 
         const payload = {
@@ -25,7 +33,6 @@ export const analyzeRoomImage = async (req, res) => {
                 ]
             }],
             generationConfig: {
-                // Gemini 1.5 Flash bản v1 đã hỗ trợ cực tốt response_mime_type
                 response_mime_type: "application/json"
             }
         };
@@ -39,7 +46,6 @@ export const analyzeRoomImage = async (req, res) => {
         const result = await response.json();
 
         if (!response.ok) {
-            // Nếu vẫn bị lỗi Quota (429), chúng ta sẽ nhảy xuống phần catch để dùng dữ liệu giả
             throw new Error(result.error?.message || "Lỗi API");
         }
 
@@ -47,14 +53,24 @@ export const analyzeRoomImage = async (req, res) => {
         const area = Number(aiData.area) || 20;
         const clutter_level = aiData.clutter_level || 'low';
 
-        const BASE_PRICE_PER_M2 = 20000;
-        let multiplier = clutter_level === 'high' ? 1.5 : (clutter_level === 'medium' ? 1.2 : 1.0);
-        const finalPrice = Math.round(area * BASE_PRICE_PER_M2 * multiplier);
+        // 3. TÍNH TOÁN GIÁ DỰA TRÊN DATABASE CHUẨN
+        let multiplier = 1.0;
+        if (clutter_level === 'high') {
+            multiplier = currentConfig.High_Factor;
+        } else if (clutter_level === 'medium') {
+            multiplier = currentConfig.Medium_Factor;
+        }
+
+        const finalPrice = Math.round(area * currentConfig.Base_Price * multiplier);
 
         return res.status(200).json({
             success: true,
             data: {
-                details: { estimated_area_m2: area, clutter_status: clutter_level },
+                details: {
+                    estimated_area_m2: area,
+                    clutter_status: clutter_level,
+                    applied_price_m2: currentConfig.Base_Price // Trả về thêm để FE dễ hiển thị nếu cần
+                },
                 final_price_vnd: finalPrice
             }
         });
@@ -62,13 +78,24 @@ export const analyzeRoomImage = async (req, res) => {
     } catch (error) {
         console.error("❌ Lỗi AI:", error.message);
 
-        // PHƯƠNG ÁN DỰ PHÒNG: Nếu AI lỗi hoặc hết tiền, vẫn trả về data để bạn code tiếp giao diện
+        // 4. PHƯƠNG ÁN DỰ PHÒNG: Lấy tạm cấu hình từ DB để tính giá giả lập
+        // Dùng lệnh lặp lại một chút vì biến currentConfig ở trên nằm trong khối try
+        let backupConfig = await AIConfig.findOne({ Is_Active: true }) || { Base_Price: 20000, Medium_Factor: 1.2 };
+
+        const fallbackArea = 25; // Giả lập phòng 25m2
+        const fallbackClutter = "medium";
+        const fallbackPrice = Math.round(fallbackArea * backupConfig.Base_Price * backupConfig.Medium_Factor);
+
         return res.status(200).json({
             success: true,
             message: "Hệ thống đang giả lập kết quả (AI Quota Limit).",
             data: {
-                details: { estimated_area_m2: 25, clutter_status: "medium" },
-                final_price_vnd: 600000 // 25 * 20000 * 1.2
+                details: {
+                    estimated_area_m2: fallbackArea,
+                    clutter_status: fallbackClutter,
+                    applied_price_m2: backupConfig.Base_Price
+                },
+                final_price_vnd: fallbackPrice
             }
         });
     }

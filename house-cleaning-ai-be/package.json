@@ -10,7 +10,8 @@
     "seed:clients": "node src/seeders/clientSeeder.js",
     "seed:admins": "node src/seeders/adminSeeder.js",
     "seed:cleaners": "node src/seeders/cleanerSeeder.js",
-    "seed:all": "npm run seed:clients && npm run seed:admins && npm run seed:cleaners"
+    "seed:config": "node src/seeders/AIConfigSeeder.js",
+    "seed:all": "npm run seed:clients && npm run seed:admins && npm run seed:cleaners && npm run seed:config"
   },
   "keywords": [],
   "author": "",
