@@ -58,6 +58,7 @@ export const HomePage = () => {
         try {
             const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
             const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
+            console.log("Token đang có là:", token);
 
             if (!token) {
                 throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập để sử dụng tính năng này.");

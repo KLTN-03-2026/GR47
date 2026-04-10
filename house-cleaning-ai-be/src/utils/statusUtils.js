@@ -23,3 +23,17 @@ export const CLEANER_STATUS = {
     ACTIVE: 1,
     BANNED: 2
 };
+
+export const BOOKING_STATUS = {
+    WAITING: 1,
+    ACCEPTED: 2,
+    IN_PROGRESS: 3,
+    COMPLETED: 4,
+    CANCELLED: 5
+};
+
+export const PAYMENT_STATUS = {
+    UNPAID: 1,
+    PAID: 2,
+    REFUNDED: 3
+};

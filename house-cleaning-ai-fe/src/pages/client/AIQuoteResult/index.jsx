@@ -158,13 +158,12 @@ export const ClientAIQuoteResult = () => {
 
                                 {/* Nút Chốt Deal */}
                                 <button
-                                    onClick={() => navigate("/booking-info", { state: { bookingData: aiData } })}
+                                    onClick={() => navigate("/booking-info", { state: { aiData: aiData } })} // Gửi aiData sang
                                     className="group flex w-full items-center justify-center gap-3 rounded-2xl bg-green-900 py-4 text-lg font-bold text-white transition-all hover:bg-black hover:shadow-xl active:scale-[0.98]"
                                 >
                                     Tiếp tục đặt lịch
-                                    <CalendarCheck size={22} className="transition-transform group-hover:rotate-12" />
+                                    <CalendarCheck size={22} />
                                 </button>
-
                                 <p className="text-center text-xs text-gray-400">
                                     Bấm tiếp tục để chọn địa chỉ và thời gian phục vụ cụ thể.
                                 </p>

@@ -56,15 +56,13 @@ export const clientRoutes = [
                     { path: "order-detail/:id", element: <ClientOrderDetail /> },
                     { path: "cancel-order/:id", element: <ClientCancelOrder /> },
                     { path: "feedback/:id", element: <ClientFeedback /> },
+                    // --- NHÓM CÔNG KHAI KHÔNG CÓ LAYOUT (Khách lạ mua hàng nhanh) ---
+                    { path: "ai-result", element: <ClientAIQuoteResult /> },
+                    { path: "booking-info", element: <ClientBookingInfo /> },
                 ]
             }
         ],
     },
-
-    // --- NHÓM CÔNG KHAI KHÔNG CÓ LAYOUT (Khách lạ mua hàng nhanh) ---
-    { path: "ai-result", element: <ClientAIQuoteResult /> },
-    { path: "booking-info", element: <ClientBookingInfo /> },
-
     // --- NHÓM CHỈ DÀNH CHO NGƯỜI CHƯA ĐĂNG NHẬP ---
     {
         element: <PublicRoute />,

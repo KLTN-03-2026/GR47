@@ -3,6 +3,7 @@ import multer from 'multer'; // 1. Phải import multer
 import * as ClientController from '../../controllers/ClientController.js';
 import * as AIController from '../../controllers/AIController.js';
 import * as ClientMiddleware from '../../middlewares/ClientMiddleware.js';
+import * as BookingController from '../../controllers/BookingController.js';
 
 const clientRouter = express.Router();
 
@@ -16,8 +17,9 @@ clientRouter.post('/login', ClientController.login);
 clientRouter.post('/register', ClientController.register);
 
 clientRouter.post('/check-auth', ClientMiddleware.protect, ClientController.checkAuth);
+clientRouter.get('/get-all-clients-full', ClientMiddleware.protect, ClientController.getAllClientsFull);
+clientRouter.post('/create-booking', ClientMiddleware.protect, BookingController.createBooking)
 
-// 3. THÊM upload.single('room_image') VÀO ĐÂY 👇
 clientRouter.post(
     '/analyze-room-image',
     ClientMiddleware.protect,
