@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     Settings2, Save, Banknote, Percent,
     AlertCircle, CheckCircle2, ShieldAlert,
@@ -6,15 +6,58 @@ import {
 } from "lucide-react";
 
 export const AIPriceConfig = () => {
-    // Trạng thái các input (Mục 1, 2, 3)
+    // Trạng thái các input
     const [config, setConfig] = useState({
-        basePrice: 15000, // Giá cơ bản / m2
-        mediumFactor: 1.2, // Hệ số trung bình
-        highFactor: 1.5    // Hệ số cao
+        basePrice: 0,
+        mediumFactor: 0,
+        highFactor: 0
     });
 
     const [status, setStatus] = useState("idle"); // idle | loading | success | error
     const [notification, setNotification] = useState({ type: "", message: "" });
+    const [isFetching, setIsFetching] = useState(true);
+
+    // ==========================================
+    // 1. LẤY CẤU HÌNH HIỆN TẠI TỪ SERVER
+    // ==========================================
+    useEffect(() => {
+        const fetchCurrentConfig = async () => {
+            try {
+                const token = localStorage.getItem("admin_token");
+                const API_URL = import.meta.env.VITE_API_BASE_ADMIN_URL;
+
+                const response = await fetch(`${API_URL}/get-current-ai-config`, {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success && result.data) {
+                    setConfig({
+                        basePrice: result.data.Base_Price,
+                        mediumFactor: result.data.Medium_Factor,
+                        highFactor: result.data.High_Factor
+                    });
+                } else if (response.status === 404) {
+                    // Nếu chưa có cấu hình nào trong DB, set mặc định để Admin nhập
+                    setConfig({ basePrice: 15000, mediumFactor: 1.2, highFactor: 1.5 });
+                } else {
+                    showToast("error", result.message || "Không thể tải cấu hình AI.");
+                }
+            } catch (error) {
+                console.error("Lỗi tải cấu hình:", error);
+                showToast("error", "Lỗi kết nối đến máy chủ.");
+            } finally {
+                setIsFetching(false);
+            }
+        };
+
+        fetchCurrentConfig();
+    }, []);
 
     // Xử lý thay đổi input
     const handleChange = (e) => {
@@ -28,17 +71,18 @@ export const AIPriceConfig = () => {
         setTimeout(() => setNotification({ type: "", message: "" }), 4000);
     };
 
-    // Hoạt động: Lưu tham số (Mục 4)
-    const handleSave = (e) => {
+    // ==========================================
+    // 2. LƯU CẤU HÌNH MỚI LÊN SERVER
+    // ==========================================
+    const handleSave = async (e) => {
         e.preventDefault();
         setStatus("loading");
 
-        // Lấy giá trị chuyển sang số
         const base = Number(config.basePrice);
         const med = Number(config.mediumFactor);
         const high = Number(config.highFactor);
 
-        // Xử lý Thất bại: Nhập sai (Trống, không phải số, hoặc sai logic)
+        // Validate cơ bản
         if (!base || !med || !high) {
             showToast("error", "Vui lòng nhập đầy đủ các tham số cấu hình.");
             setStatus("error");
@@ -57,18 +101,52 @@ export const AIPriceConfig = () => {
             return;
         }
 
-        // Xử lý Thành công: Áp dụng lưu DB
-        setTimeout(() => {
-            showToast("success", "Cập nhật cấu hình giá AI thành công! Hệ thống đã áp dụng giá mới.");
-            setStatus("success");
-        }, 1200);
+        try {
+            const token = localStorage.getItem("admin_token");
+            const API_URL = import.meta.env.VITE_API_BASE_ADMIN_URL;
+
+            const response = await fetch(`${API_URL}/update-ai-config`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    Base_Price: base,
+                    Medium_Factor: med,
+                    High_Factor: high
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                showToast("success", "Cập nhật cấu hình giá AI thành công! Hệ thống đã áp dụng giá mới.");
+                setStatus("success");
+            } else {
+                throw new Error(result.message || "Lỗi cập nhật cấu hình.");
+            }
+        } catch (error) {
+            console.error("Lỗi cập nhật:", error);
+            showToast("error", error.message || "Lỗi kết nối máy chủ khi lưu cấu hình.");
+            setStatus("error");
+        }
     };
 
     // Tính toán Live Preview dựa trên 50m2
-    const previewArea = 50;
+    const previewArea = 1;
     const safeBase = Number(config.basePrice) || 0;
     const safeMed = Number(config.mediumFactor) || 0;
     const safeHigh = Number(config.highFactor) || 0;
+
+    if (isFetching) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 text-blue-600">
+                <div className="h-10 w-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4" />
+                <p className="font-bold text-slate-500">Đang tải cấu hình AI...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 animate-fade-in-up">
@@ -159,7 +237,7 @@ export const AIPriceConfig = () => {
                             <button
                                 type="submit"
                                 disabled={status === "loading"}
-                                className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-600/20"
+                                className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {status === "loading" ? (
                                     <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -172,7 +250,7 @@ export const AIPriceConfig = () => {
                     </form>
                 </div>
 
-                {/* Cột phải: Bảng Live Preview (Giả lập tính toán) */}
+                {/* Cột phải: Bảng Live Preview */}
                 <div className="lg:col-span-5 space-y-6">
                     <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-hidden text-white">
                         <div className="p-5 border-b border-slate-700 bg-slate-900/50 flex items-center gap-2">
