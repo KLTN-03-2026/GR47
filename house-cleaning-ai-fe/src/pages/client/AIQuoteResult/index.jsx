@@ -10,6 +10,7 @@ export const ClientAIQuoteResult = () => {
     const location = useLocation();
 
     // 1. LẤY DATA TỪ HOME PAGE GỬI QUA
+    // Lưu ý: HomePage gửi { state: { aiData: result.data } }
     const rawAiData = location.state?.aiData;
 
     useEffect(() => {
@@ -20,30 +21,30 @@ export const ClientAIQuoteResult = () => {
 
     if (!rawAiData) return null;
 
-    // 2. BIẾN ĐỔI DATA VỚI SAFE CHECK (Ngăn sập trang nếu thiếu dữ liệu)
+    // 2. BIẾN ĐỔI DATA (Đã sửa Key theo đúng JSON thực tế của sếp)
     const mapMessiness = (status) => {
         if (status === 'low') return "Thấp";
         if (status === 'medium') return "Trung Bình";
         if (status === 'high') return "Cao";
-        return "Trung Bình"; // Default
+        return "Trung Bình";
     };
 
     const calcEstimatedHours = () => {
-        // Thêm || 0 và || 1 để tránh tính toán ra NaN
-        const area = rawAiData?.details?.estimated_area_m2 || 0;
-        const multiplier = rawAiData?.details?.clutter_multiplier || 1;
-
+        // Sửa: estimated_area_m2 -> area
+        const area = rawAiData?.details?.area || 0;
         const baseHours = area / 10;
-        const totalHours = baseHours * multiplier;
-        return Math.max(2, Math.round(totalHours * 10) / 10);
+        // Giả định tối thiểu 2 giờ làm việc
+        return Math.max(2, Math.round(baseHours * 10) / 10);
     };
 
-    // Gán dữ liệu với giá trị mặc định để chống undefined
+    // Chuẩn hóa dữ liệu để hiển thị lên UI
     const aiData = {
-        area: rawAiData?.details?.estimated_area_m2 || 0,
+        area: rawAiData?.details?.area || 0,
         messiness: mapMessiness(rawAiData?.details?.clutter_status),
         estimatedHours: calcEstimatedHours(),
         totalPrice: rawAiData?.final_price_vnd || 0,
+        // Lưu thêm các thông số gốc để tí nữa gửi sang trang Booking
+        rawDetails: rawAiData?.details
     };
 
     // 3. UI HELPER TẠO MÀU SẮC
@@ -88,7 +89,7 @@ export const ClientAIQuoteResult = () => {
                 {/* Bố cục chính */}
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
 
-                    {/* CỘT TRÁI (8/12) */}
+                    {/* CỘT TRÁI (8/12): Thông số bóc tách */}
                     <div className="lg:col-span-8 space-y-6">
                         <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-sm">
                             <h2 className="mb-6 text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -123,13 +124,13 @@ export const ClientAIQuoteResult = () => {
                             <div className="mt-8 rounded-2xl bg-green-50/50 p-6 border border-green-100">
                                 <h3 className="text-sm font-bold text-green-800 mb-2 uppercase tracking-wider">Phân tích hệ thống:</h3>
                                 <p className="text-sm text-green-700 leading-relaxed italic">
-                                    "Dựa trên hình ảnh, AI nhận diện không gian với diện tích ước tính {aiData.area}m² và mức độ bừa bộn {aiData.messiness.toLowerCase()}. Chi phí đã được nhân với hệ số thuật toán x{rawAiData?.details?.clutter_multiplier || 1} để đảm bảo chất lượng dọn dẹp chuyên sâu."
+                                    "Dựa trên hình ảnh, AI nhận diện không gian với diện tích ước tính {aiData.area}m² và mức độ bừa bộn {aiData.messiness.toLowerCase()}. Chi phí đã được tính toán dựa trên thuật toán nhận diện vật dụng thực tế để đảm bảo chất lượng dọn dẹp chuyên sâu."
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    {/* CỘT PHẢI (4/12) */}
+                    {/* CỘT PHẢI (4/12): Tổng kết */}
                     <div className="lg:col-span-4">
                         <div className="sticky top-28 rounded-3xl border border-green-100 bg-white p-8 shadow-xl shadow-green-900/5">
                             <h2 className="mb-6 text-xl font-black text-gray-900">Tổng kết báo giá</h2>
@@ -149,21 +150,21 @@ export const ClientAIQuoteResult = () => {
                                     <p className="text-sm font-bold uppercase tracking-widest opacity-80">Tổng chi phí tạm tính</p>
                                     <div className="mt-2 flex items-baseline justify-between">
                                         <span className="text-3xl font-black tracking-tight">
-                                            {/* Đã bọc an toàn trước khi toLocaleString */}
                                             {(aiData.totalPrice || 0).toLocaleString('vi-VN')}
                                         </span>
-                                        <span className="text-lg font-bold uppercase">VNĐ</span>
+                                        <span className="text-lg font-bold uppercase pl-1">VNĐ</span>
                                     </div>
                                 </div>
 
-                                {/* Nút Chốt Deal */}
+                                {/* Nút Tiếp tục */}
                                 <button
-                                    onClick={() => navigate("/booking-info", { state: { aiData: aiData } })} // Gửi aiData sang
+                                    onClick={() => navigate("/booking-info", { state: { aiData: aiData } })}
                                     className="group flex w-full items-center justify-center gap-3 rounded-2xl bg-green-900 py-4 text-lg font-bold text-white transition-all hover:bg-black hover:shadow-xl active:scale-[0.98]"
                                 >
                                     Tiếp tục đặt lịch
-                                    <CalendarCheck size={22} />
+                                    <CalendarCheck size={22} className="transition-transform group-hover:rotate-12" />
                                 </button>
+
                                 <p className="text-center text-xs text-gray-400">
                                     Bấm tiếp tục để chọn địa chỉ và thời gian phục vụ cụ thể.
                                 </p>
@@ -174,7 +175,7 @@ export const ClientAIQuoteResult = () => {
                 </div>
 
                 <div className="mt-12 text-center text-gray-400 text-sm font-medium">
-                    Báo giá AI được phân tích lúc {new Date().toLocaleTimeString('vi-VN')} • Hệ số cơ bản: {(rawAiData?.details?.base_price_m2 || 0).toLocaleString('vi-VN')} VNĐ/m²
+                    Báo giá AI được phân tích lúc {new Date().toLocaleTimeString('vi-VN')} • Đơn giá: {(rawAiData?.details?.price_per_m2 || 0).toLocaleString('vi-VN')} VNĐ/m²
                 </div>
             </div>
         </div>
