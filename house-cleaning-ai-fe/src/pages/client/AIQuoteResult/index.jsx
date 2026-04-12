@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
     ScanSearch, Clock, Maximize2,
-    Trash2, CalendarCheck, RefreshCw, ChevronLeft, Info
+    Trash2, CalendarCheck, RefreshCw, ChevronLeft, Info, Image as ImageIcon
 } from "lucide-react";
 
 export const ClientAIQuoteResult = () => {
@@ -10,7 +10,6 @@ export const ClientAIQuoteResult = () => {
     const location = useLocation();
 
     // 1. LẤY DATA TỪ HOME PAGE GỬI QUA
-    // Lưu ý: HomePage gửi { state: { aiData: result.data } }
     const rawAiData = location.state?.aiData;
 
     useEffect(() => {
@@ -21,7 +20,7 @@ export const ClientAIQuoteResult = () => {
 
     if (!rawAiData) return null;
 
-    // 2. BIẾN ĐỔI DATA (Đã sửa Key theo đúng JSON thực tế của sếp)
+    // 2. BIẾN ĐỔI DATA 
     const mapMessiness = (status) => {
         if (status === 'low') return "Thấp";
         if (status === 'medium') return "Trung Bình";
@@ -30,20 +29,18 @@ export const ClientAIQuoteResult = () => {
     };
 
     const calcEstimatedHours = () => {
-        // Sửa: estimated_area_m2 -> area
         const area = rawAiData?.details?.area || 0;
         const baseHours = area / 10;
-        // Giả định tối thiểu 2 giờ làm việc
         return Math.max(2, Math.round(baseHours * 10) / 10);
     };
 
-    // Chuẩn hóa dữ liệu để hiển thị lên UI
+    // Gói gém TOÀN BỘ dữ liệu để xài cho UI và mang sang trang Đặt lịch
     const aiData = {
         area: rawAiData?.details?.area || 0,
         messiness: mapMessiness(rawAiData?.details?.clutter_status),
         estimatedHours: calcEstimatedHours(),
         totalPrice: rawAiData?.final_price_vnd || 0,
-        // Lưu thêm các thông số gốc để tí nữa gửi sang trang Booking
+        imageUrl: rawAiData?.image_url || null, // <--- LẤY ẢNH TỪ JSON ĐÂY SẾP!
         rawDetails: rawAiData?.details
     };
 
@@ -95,6 +92,20 @@ export const ClientAIQuoteResult = () => {
                             <h2 className="mb-6 text-lg font-bold text-gray-800 flex items-center gap-2">
                                 <Info size={20} className="text-green-600" /> Tham số AI bóc tách
                             </h2>
+
+                            {/* HÌNH ẢNH AI BÓC TÁCH (SHOW RA NẾU JSON CÓ) */}
+                            {aiData.imageUrl && (
+                                <div className="mb-6 group relative overflow-hidden rounded-2xl border border-gray-100 shadow-sm">
+                                    <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg flex items-center gap-2 text-xs font-bold text-gray-700 shadow-sm z-10">
+                                        <ImageIcon size={14} className="text-green-600" /> Ảnh gốc đã phân tích
+                                    </div>
+                                    <img
+                                        src={aiData.imageUrl}
+                                        alt="AI Phân tích phòng"
+                                        className="w-full h-64 sm:h-80 object-cover transition-transform duration-700 group-hover:scale-105"
+                                    />
+                                </div>
+                            )}
 
                             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                                 {/* Diện tích */}
@@ -156,7 +167,7 @@ export const ClientAIQuoteResult = () => {
                                     </div>
                                 </div>
 
-                                {/* Nút Tiếp tục */}
+                                {/* Nút Tiếp tục mang theo Toàn bộ Data sang trang Booking */}
                                 <button
                                     onClick={() => navigate("/booking-info", { state: { aiData: aiData } })}
                                     className="group flex w-full items-center justify-center gap-3 rounded-2xl bg-green-900 py-4 text-lg font-bold text-white transition-all hover:bg-black hover:shadow-xl active:scale-[0.98]"
