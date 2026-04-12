@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import "./style.css";
+import "../../../assets/css/client/Homepage/index.css";
 import AOS from "aos";
 import "aos/dist/aos.css";
 
