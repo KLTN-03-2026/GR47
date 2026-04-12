@@ -19,12 +19,8 @@ clientRouter.post('/register', ClientController.register);
 clientRouter.post('/check-auth', ClientMiddleware.protect, ClientController.checkAuth);
 clientRouter.get('/get-all-clients-full', ClientMiddleware.protect, ClientController.getAllClientsFull);
 clientRouter.post('/create-booking', ClientMiddleware.protect, BookingController.createBooking)
+clientRouter.get('/order-detail/:id', ClientMiddleware.protect, BookingController.getBookingDetailsById);
 
-clientRouter.post(
-    '/analyze-room-image',
-    ClientMiddleware.protect,
-    upload.single('room_image'), // Middleware này bóc tách file từ payload
-    AIController.analyzeRoomImage
-);
+clientRouter.post('/analyze-room-image', ClientMiddleware.protect, upload.single('room_image'), AIController.analyzeRoomImage);
 
 export default clientRouter;

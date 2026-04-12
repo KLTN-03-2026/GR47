@@ -14,20 +14,24 @@ export const analyzeRoomImage = async (req, res) => {
             Base_Price: 20000, Medium_Factor: 1.2, High_Factor: 1.5
         };
 
-        // 1. GỌI ĐÚNG CON AI TRONG DANH SÁCH CỦA ÔNG (gemini-2.5-flash)
+        // 🔥 CHUẨN BỊ SẴN ẢNH BASE64 (Vừa gửi AI, vừa gửi về Frontend)
+        const base64String = req.file.buffer.toString("base64");
+        const mimeType = req.file.mimetype;
+        const imageBase64Url = `data:${mimeType};base64,${base64String}`; // Dạng "data:image/jpeg;base64,...."
+
+        // 1. GỌI ĐÚNG CON AI
         const model = genAI.getGenerativeModel({
             model: "gemini-2.5-flash",
             generationConfig: {
-                // Ép thằng Google trả về JSON thuần, không bọc Markdown
                 responseMimeType: "application/json"
             }
         });
 
-        // 2. CHUẨN BỊ ẢNH THEO CHUẨN GEMINI
+        // 2. GÓI ẢNH CHO GEMINI
         const imagePart = {
             inlineData: {
-                data: req.file.buffer.toString("base64"),
-                mimeType: req.file.mimetype
+                data: base64String, // Dùng lại chuỗi base64 ở trên
+                mimeType: mimeType
             }
         };
 
@@ -52,7 +56,7 @@ export const analyzeRoomImage = async (req, res) => {
 
         const finalPrice = Math.round(area * currentConfig.Base_Price * multiplier);
 
-        // 5. TRẢ VỀ FRONTEND
+        // 5. TRẢ VỀ FRONTEND (Kèm luôn cái ảnh nha)
         return res.status(200).json({
             success: true,
             data: {
@@ -61,7 +65,8 @@ export const analyzeRoomImage = async (req, res) => {
                     clutter_status: clutter_level,
                     price_per_m2: currentConfig.Base_Price
                 },
-                final_price_vnd: finalPrice
+                final_price_vnd: finalPrice,
+                image_url: imageBase64Url // 🔥 ẢNH TRẢ VỀ FRONTEND NẰM Ở ĐÂY LUN SẾP
             }
         });
 
