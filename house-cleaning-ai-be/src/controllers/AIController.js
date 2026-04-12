@@ -1,59 +1,61 @@
-// src/controllers/AIController.js
-import AIConfig from '../models/AIConfigModel.js'; // Nhớ import Model cấu hình vào nhé!
+import OpenAI from "openai";
+import AIConfig from '../models/AIConfigModel.js';
+
+// Khởi tạo OpenAI (Nó sẽ tự động lấy OPENAI_API_KEY từ file .env)
+const openai = new OpenAI({ 
+    apiKey: process.env.OPENAI_API_KEY 
+});
 
 export const analyzeRoomImage = async (req, res) => {
     try {
+        // 1. Kiểm tra ảnh đầu vào
         if (!req.file) {
             return res.status(400).json({ success: false, message: 'Vui lòng cung cấp ảnh.' });
         }
 
-        // 1. LẤY CẤU HÌNH GIÁ MỚI NHẤT TỪ DATABASE
-        let currentConfig = await AIConfig.findOne({ Is_Active: true });
-
-        // Nếu lỡ Database trống chưa có dòng nào, tạo luôn fallback mặc định để code không bị "chết"
-        if (!currentConfig) {
-            currentConfig = { Base_Price: 20000, Medium_Factor: 1.2, High_Factor: 1.5 };
-        }
-
-        // 2. GỌI API GEMINI AI
-        const API_KEY = process.env.AI_API_KEY;
-        const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
-        const base64Image = req.file.buffer.toString("base64");
-
-        const payload = {
-            contents: [{
-                parts: [
-                    { text: "Phân tích ảnh và trả về JSON: {\"area\": number, \"clutter_level\": \"low\"|\"medium\"|\"high\"}. Không trả thêm text khác." },
-                    {
-                        inline_data: {
-                            mime_type: req.file.mimetype,
-                            data: base64Image
-                        }
-                    }
-                ]
-            }],
-            generationConfig: {
-                response_mime_type: "application/json"
-            }
+        // 2. Lấy cấu hình giá từ DB
+        const currentConfig = await AIConfig.findOne({ Is_Active: true }) || { 
+            Base_Price: 20000, 
+            Medium_Factor: 1.2, 
+            High_Factor: 1.5 
         };
 
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+        // 3. Chuyển ảnh sang dạng Base64
+        const base64Image = req.file.buffer.toString("base64");
+        const mimeType = req.file.mimetype; // ví dụ: image/jpeg, image/png
+        const imageUrl = `data:${mimeType};base64,${base64Image}`;
+
+        // 4. Gọi API OpenAI (GPT-4o-mini)
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        { 
+                            type: "text", 
+                            text: "Analyze this room. Return ONLY a JSON object: {\"area\": number, \"clutter_level\": \"low\"|\"medium\"|\"high\"}. No markdown, no extra text." 
+                        },
+                        {
+                            type: "image_url",
+                            image_url: {
+                                "url": imageUrl
+                            }
+                        }
+                    ]
+                }
+            ],
+            // Ép OpenAI trả về định dạng JSON chuẩn 100%
+            response_format: { type: "json_object" } 
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.error?.message || "Lỗi API");
-        }
-
-        const aiData = JSON.parse(result.candidates[0].content.parts[0].text);
+        // 5. Parse kết quả trả về
+        const aiData = JSON.parse(response.choices[0].message.content);
+        
         const area = Number(aiData.area) || 20;
         const clutter_level = aiData.clutter_level || 'low';
 
-        // 3. TÍNH TOÁN GIÁ DỰA TRÊN DATABASE CHUẨN
+        // 6. Tính tiền
         let multiplier = 1.0;
         if (clutter_level === 'high') {
             multiplier = currentConfig.High_Factor;
@@ -63,40 +65,26 @@ export const analyzeRoomImage = async (req, res) => {
 
         const finalPrice = Math.round(area * currentConfig.Base_Price * multiplier);
 
+        // 7. Trả kết quả cho Frontend
         return res.status(200).json({
             success: true,
             data: {
-                details: {
-                    estimated_area_m2: area,
-                    clutter_status: clutter_level,
-                    applied_price_m2: currentConfig.Base_Price // Trả về thêm để FE dễ hiển thị nếu cần
+                details: { 
+                    estimated_area_m2: area, 
+                    clutter_status: clutter_level, 
+                    applied_price_m2: currentConfig.Base_Price 
                 },
                 final_price_vnd: finalPrice
             }
         });
 
     } catch (error) {
-        console.error("❌ Lỗi AI:", error.message);
-
-        // 4. PHƯƠNG ÁN DỰ PHÒNG: Lấy tạm cấu hình từ DB để tính giá giả lập
-        // Dùng lệnh lặp lại một chút vì biến currentConfig ở trên nằm trong khối try
-        let backupConfig = await AIConfig.findOne({ Is_Active: true }) || { Base_Price: 20000, Medium_Factor: 1.2 };
-
-        const fallbackArea = 25; // Giả lập phòng 25m2
-        const fallbackClutter = "medium";
-        const fallbackPrice = Math.round(fallbackArea * backupConfig.Base_Price * backupConfig.Medium_Factor);
-
-        return res.status(200).json({
-            success: true,
-            message: "Hệ thống đang giả lập kết quả (AI Quota Limit).",
-            data: {
-                details: {
-                    estimated_area_m2: fallbackArea,
-                    clutter_status: fallbackClutter,
-                    applied_price_m2: backupConfig.Base_Price
-                },
-                final_price_vnd: fallbackPrice
-            }
+        console.error("❌ Lỗi API:", error);
+        
+        // Trả lỗi chi tiết để dễ debug
+        return res.status(500).json({ 
+            success: false, 
+            message: "Lỗi hệ thống: " + (error.message || "Không xác định")
         });
     }
 };
