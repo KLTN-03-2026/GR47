@@ -10,12 +10,15 @@
     "seed:clients": "node src/seeders/clientSeeder.js",
     "seed:admins": "node src/seeders/adminSeeder.js",
     "seed:cleaners": "node src/seeders/cleanerSeeder.js",
-    "seed:all": "npm run seed:clients && npm run seed:admins && npm run seed:cleaners"
+    "seed:config": "node src/seeders/AIConfigSeeder.js",
+    "seed:all": "npm run seed:clients && npm run seed:admins && npm run seed:cleaners && npm run seed:config"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.15.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.0",
@@ -23,7 +26,10 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.4.1",
-    "morgan": "^1.10.1"
+    "morgan": "^1.10.1",
+    "multer": "^2.1.1",
+    "openai": "^6.34.0",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
