@@ -13,4 +13,6 @@ cleanerRouter.get('/get-booking-waiting', CleanerMiddleware.protect, BookingCont
 cleanerRouter.get('/get-booking-detail-waiting/:id', CleanerMiddleware.protect, BookingController.getBookingDetailWaitingForCleaner);
 cleanerRouter.post('/accept-booking/:id', CleanerMiddleware.protect, BookingController.acceptBooking);
 
+cleanerRouter.get('/get-booking-in-progress', CleanerMiddleware.protect, BookingController.getInProgressBookingsForCleaner);
+
 export default cleanerRouter;

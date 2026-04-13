@@ -314,3 +314,151 @@ export const acceptBooking = async (req, res) => {
         return res.status(500).json({ success: false, message: "Lỗi server: " + error.message });
     }
 };
+
+export const getMyBookings = async (req, res) => {
+    try {
+        // Lấy ID của khách hàng từ Token (do ClientMiddleware.protect truyền vào)
+        const clientId = req.user.id;
+
+        // Tìm tất cả đơn hàng của khách này
+        const bookings = await Booking.aggregate([
+            {
+                // Lọc ra các đơn của đúng ông khách này
+                $match: { Client_Id: new mongoose.Types.ObjectId(clientId) }
+            },
+            {
+                // Join với bảng Detail để lấy ảnh phòng, diện tích...
+                $lookup: {
+                    from: "booking_details",
+                    localField: "_id",
+                    foreignField: "Booking_Id",
+                    as: "AI_Details"
+                }
+            },
+            { $unwind: { path: "$AI_Details", preserveNullAndEmptyArrays: true } },
+            {
+                // Join với bảng Cleaner để xem ai là người dọn (nếu đơn đã có người nhận)
+                $lookup: {
+                    from: "cleaners", // Sếp check lại tên collection thợ dọn dẹp trong DB nhé
+                    localField: "Cleaner_Id",
+                    foreignField: "_id",
+                    as: "Cleaner_Info"
+                }
+            },
+            { $unwind: { path: "$Cleaner_Info", preserveNullAndEmptyArrays: true } },
+            {
+                // Sắp xếp đơn mới nhất lên đầu
+                $sort: { createdAt: -1 }
+            },
+            {
+                // Gọt dũa lại dữ liệu trả về cho đẹp
+                $project: {
+                    _id: 1,
+                    Total_Amount: 1,
+                    Booking_Status: 1,
+                    Payment_Status: 1,
+                    Service_Date: 1,
+                    Service_Address: 1,
+                    Notes: 1,
+                    createdAt: 1,
+                    AI_Details: 1,
+                    // Lấy tên và SĐT của thợ (nếu chưa có thợ thì trả về null)
+                    Cleaner_Name: { $ifNull: ["$Cleaner_Info.Name", "$Cleaner_Info.Full_Name", null] },
+                    Cleaner_Phone: { $ifNull: ["$Cleaner_Info.Phone", "$Cleaner_Info.PhoneNumber", null] },
+                    Cleaner_Avatar: { $ifNull: ["$Cleaner_Info.Avatar", null] }
+                }
+            }
+        ]);
+
+        return res.status(200).json({
+            success: true,
+            count: bookings.length,
+            data: bookings
+        });
+
+    } catch (error) {
+        console.error("❌ Lỗi lấy danh sách đơn của khách:", error);
+        return res.status(500).json({ success: false, message: "Lỗi server: " + error.message });
+    }
+};
+
+export const getInProgressBookingsForCleaner = async (req, res) => {
+    try {
+        // Lấy ID của thợ từ token đã được CleanerMiddleware bóc tách
+        const cleanerId = req.user.id;
+
+        const inProgressBookings = await Booking.aggregate([
+            {
+                $match: {
+                    // 1. Phải là đơn của chính thợ này
+                    Cleaner_Id: new mongoose.Types.ObjectId(cleanerId),
+                    // 2. Trạng thái đang thực hiện (Sếp check lại utils xem trạng thái này là "2" hay "3" nhé)
+                    // Nếu thợ có thể có nhiều trạng thái (vd: "Đang đến", "Đang dọn"), sếp dùng: { $in: ["2", "3"] }
+                    Booking_Status: "2"
+                }
+            },
+            {
+                // Join lấy thông tin Khách hàng
+                $lookup: {
+                    from: "clients",
+                    localField: "Client_Id",
+                    foreignField: "_id",
+                    as: "Client_Data"
+                }
+            },
+            { $unwind: { path: "$Client_Data", preserveNullAndEmptyArrays: true } },
+            {
+                // Join lấy chi tiết AI (ảnh, độ bẩn...)
+                $lookup: {
+                    from: "booking_details",
+                    localField: "_id",
+                    foreignField: "Booking_Id",
+                    as: "AI_Details"
+                }
+            },
+            { $unwind: { path: "$AI_Details", preserveNullAndEmptyArrays: true } },
+            {
+                // Ưu tiên đơn mới nhận / cập nhật gần nhất lên đầu
+                $sort: { updatedAt: -1 }
+            },
+            {
+                // Bóc tách dữ liệu phẳng ra cho Frontend dễ thở
+                $project: {
+                    _id: 1,
+                    Total_Amount: 1,
+                    Booking_Status: 1,
+                    Payment_Status: 1,
+                    Service_Date: 1,
+                    Service_Address: 1,
+                    Notes: 1,
+                    createdAt: 1,
+                    updatedAt: 1,
+                    AI_Details: 1,
+                    // Lôi cổ Tên và SĐT khách ra ngoài y như trang chi tiết
+                    Client_Name: { $ifNull: ["$Client_Data.Name", "$Client_Data.Full_Name", "Khách hàng"] },
+                    Client_Phone: {
+                        $ifNull: [
+                            "$Client_Data.Phone",
+                            "$Client_Data.PhoneNumber",
+                            "$Client_Data.phone",
+                            "$Client_Data.SDT",
+                            "Không có SĐT"
+                        ]
+                    },
+                    Client_Avatar: { $ifNull: ["$Client_Data.Avatar", ""] }
+                }
+            }
+        ]);
+
+        return res.status(200).json({
+            success: true,
+            // Trả về số lượng đơn đang làm để App báo badge (vd: có 1 đơn đang chờ xử lý)
+            count: inProgressBookings.length,
+            data: inProgressBookings
+        });
+
+    } catch (error) {
+        console.error("❌ Lỗi lấy danh sách đơn đang thực hiện của thợ:", error);
+        return res.status(500).json({ success: false, message: "Lỗi server: " + error.message });
+    }
+};
