@@ -11,16 +11,16 @@ export const CleanerOrderProgress = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    // 1. HỨNG DATA VÀ "PHIÊN DỊCH" LẠI CẤU TRÚC
+    // 1. HỨNG DATA TỪ TRANG TRƯỚC TRUYỀN SANG (Linh hoạt cho cả Waiting và Task List)
     const rawPassedData = location.state?.passedOrderData;
 
     const mappedPassedData = rawPassedData ? {
         id: rawPassedData.id,
-        customer: rawPassedData.details?.customer || "Khách hàng",
-        phone: rawPassedData.phone || "Chưa cập nhật",
-        address: rawPassedData.details?.address || "",
-        time: rawPassedData.details?.startTime || "",
-        income: rawPassedData.details?.income || 0,
+        customer: rawPassedData.details?.customer || rawPassedData.customer || "Khách hàng",
+        phone: rawPassedData.details?.phone || rawPassedData.phone || "Chưa cập nhật",
+        address: rawPassedData.details?.address || rawPassedData.address || "",
+        time: rawPassedData.details?.startTime || rawPassedData.time || "",
+        income: rawPassedData.details?.income || rawPassedData.income || 0,
     } : null;
 
     // ==========================================
@@ -39,8 +39,8 @@ export const CleanerOrderProgress = () => {
     const bottomRef = useRef(null);
 
     const [messages, setMessages] = useState([
-        { id: 1, sender: "other", text: `Chào bạn, mình là khách hàng đặt dọn dẹp đơn ${id.slice(-6).toUpperCase()}.`, time: "10:15" },
-        { id: 2, sender: "other", text: "Bạn đến nơi thì gọi số này hoặc nhắn mình xuống mở cửa sảnh nhé.", time: "10:15" },
+        { id: 1, sender: "other", text: `Chào bạn, mình là khách đặt đơn ${id.slice(-6).toUpperCase()}.`, time: "10:15" },
+        { id: 2, sender: "other", text: "Đến nơi thì gọi số này hoặc nhắn tin nhé.", time: "10:15" },
     ]);
 
     useEffect(() => {
@@ -87,8 +87,8 @@ export const CleanerOrderProgress = () => {
                     const data = result.data;
                     setOrderData({
                         id: data._id,
-                        customer: data.Client_Id?.Name || data.Client_Id?.Full_Name || "Khách hàng",
-                        phone: data.Client_Id?.Phone_Number || data.Client_Id?.Phone || "Chưa cập nhật",
+                        customer: data.Client_Name || data.Client_Info?.Full_Name || "Khách hàng",
+                        phone: data.Client_Phone || data.Client_Info?.Phone_Number || "Chưa cập nhật",
                         address: data.Service_Address,
                         time: new Date(data.Service_Date).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }),
                         income: data.Total_Amount,
@@ -99,7 +99,7 @@ export const CleanerOrderProgress = () => {
                     else if (dbStatus === "3") setWorkStatus("IN_PROGRESS");
                     else if (dbStatus === "4") setWorkStatus("COMPLETED");
                 } else {
-                    throw new Error("Lỗi tải đơn hàng cứu hộ");
+                    throw new Error("Lỗi tải đơn hàng cứu hộ. Có thể đơn không tồn tại.");
                 }
             } catch (err) {
                 setError(err.message);
@@ -117,7 +117,7 @@ export const CleanerOrderProgress = () => {
     const updateOrderStatus = async (newStatusValue, targetUIStatus) => {
         setIsUpdating(true);
         try {
-            // Uncomment gọi API khi Backend đã xong
+            // Khi BE đã có route cập nhật trạng thái, sếp mở comment đoạn này ra
             /*
             const API_URL = import.meta.env.VITE_API_BASE_CLEANER_URL;
             const token = localStorage.getItem("cleaner_token") || sessionStorage.getItem("cleaner_token");
@@ -143,9 +143,7 @@ export const CleanerOrderProgress = () => {
         }
     };
 
-    // SỬA LẠI ĐOẠN NÀY
     const handleDirection = () => {
-        // Sửa chữ navigation thành navigate cho khớp với Route sếp đặt
         navigate(`/cleaner/navigate/${id}`, {
             state: { passedOrderData: orderData }
         });
@@ -176,7 +174,9 @@ export const CleanerOrderProgress = () => {
             <div className="min-h-screen bg-[#f4f7f6] flex flex-col items-center justify-center p-4 text-center">
                 <AlertCircle size={40} className="text-red-400 mb-4" />
                 <p className="font-bold text-gray-700">{error || "Lỗi không xác định"}</p>
-                <button onClick={() => navigate(-1)} className="mt-6 px-6 py-3 bg-gray-900 text-white rounded-xl font-bold">Quay lại</button>
+                <button onClick={() => navigate(-1)} className="mt-6 px-6 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-black">
+                    Quay lại
+                </button>
             </div>
         );
     }
@@ -226,7 +226,7 @@ export const CleanerOrderProgress = () => {
                             <p className="text-sm font-bold text-gray-800 leading-relaxed mb-4">{orderData.address}</p>
 
                             <button onClick={handleDirection} className="w-full py-3 px-4 bg-gray-900 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-black transition-colors">
-                                <Navigation size={16} /> Bật Google Maps chỉ đường
+                                <Navigation size={16} /> Bật bản đồ chỉ đường
                             </button>
                         </div>
                     </div>
@@ -238,7 +238,7 @@ export const CleanerOrderProgress = () => {
                             <Clock size={20} />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Thời gian</p>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Thời gian hẹn</p>
                             <p className="text-sm font-bold text-gray-800">{orderData.time}</p>
                         </div>
                     </div>
@@ -273,6 +273,7 @@ export const CleanerOrderProgress = () => {
                 </div>
             </main>
 
+            {/* Bottom Actions */}
             <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 p-4 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-30">
                 <div className="max-w-md mx-auto">
                     {workStatus === "MOVING" && (
@@ -293,7 +294,7 @@ export const CleanerOrderProgress = () => {
                 </div>
             </div>
 
-            {/* Modal Chat giữ nguyên UI */}
+            {/* Modal Chat */}
             {isChatOpen && (
                 <div className="fixed inset-0 z-50 bg-[#f4f7f6] flex flex-col animate-fade-in-up">
                     <header className="bg-white px-4 py-3 flex items-center justify-between shadow-sm z-20 shrink-0 pb-safe-top">
@@ -340,7 +341,9 @@ export const CleanerOrderProgress = () => {
                                 <div className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl relative">
                                     <textarea rows="1" placeholder="Nhập tin nhắn..." className="w-full bg-transparent px-4 py-3.5 outline-none text-sm font-medium resize-none max-h-24" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }} />
                                 </div>
-                                <button type="submit" disabled={!inputText.trim()} className={`p-3.5 rounded-full flex-shrink-0 transition-all ${inputText.trim() ? "bg-green-600 text-white shadow-lg shadow-green-900/20 hover:bg-green-700 active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}><Send size={20} className="ml-1" /></button>
+                                <button type="submit" disabled={!inputText.trim()} className={`p-3.5 rounded-full flex-shrink-0 transition-all ${inputText.trim() ? "bg-green-600 text-white shadow-lg shadow-green-900/20 hover:bg-green-700 active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}>
+                                    <Send size={20} className="ml-1" />
+                                </button>
                             </form>
                         )}
                     </div>

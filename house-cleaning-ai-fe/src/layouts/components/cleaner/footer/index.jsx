@@ -12,7 +12,7 @@ export const CleanerFooter = () => {
                     <Radar size={22} />
                     <span className="text-[10px] font-bold uppercase">Tìm việc</span>
                 </NavLink>
-                <NavLink to="/cleaner/order-progress/:id" className={navLinkClass}>
+                <NavLink to="/cleaner/task-list" className={navLinkClass}>
                     <Briefcase size={22} />
                     <span className="text-[10px] font-bold uppercase">Đơn hàng</span>
                 </NavLink>

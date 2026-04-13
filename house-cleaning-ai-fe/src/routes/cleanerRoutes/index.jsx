@@ -11,6 +11,7 @@ import { CleanerRegister } from "../../pages/cleaner/Register/index.jsx";
 import { CleanerLoginPage } from "../../pages/cleaner/Login/index.jsx";
 import { CleanerWallet } from "../../pages/cleaner/Wallet/index.jsx";
 import { CleanerProfile } from "../../pages/cleaner/Profile/index.jsx";
+import { CleanerTaskList } from "../../pages/cleaner/CleanerTaskList/index.jsx";
 
 // ==========================================
 // CHỐT BẢO VỆ TÍCH HỢP (CLEANER GUARDS)
@@ -60,6 +61,7 @@ export const cleanerRoutes = [
             { path: "/cleaner/order-detail/:id", element: <CleanerPendingOrderDetail /> },
             { path: "/cleaner/order-progress/:id", element: <CleanerOrderProgress /> },
             { path: "/cleaner/navigate/:id", element: <CleanerNavigation /> },
+            { path: "/cleaner/task-list", element: <CleanerTaskList /> },
         ]
     },
     {
