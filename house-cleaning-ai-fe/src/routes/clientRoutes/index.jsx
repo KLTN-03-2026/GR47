@@ -16,6 +16,7 @@ import { ClientCancelOrder } from "../../pages/client/CancelOrder/index.jsx";
 import { ClientFeedback } from "../../pages/client/Feedback/index.jsx";
 import { ClientProfile } from "../../pages/client/Profile/index.jsx";
 import { ForgotPassword } from "../../pages/client/ForgotPassword/index.jsx";
+import { About } from "../../pages/client/About/index.jsx";
 
 // ==========================================
 // 1. VIẾT THẲNG LOGIC BẢO VỆ ROUTE TẠI ĐÂY
@@ -59,6 +60,7 @@ export const clientRoutes = [
                     // --- NHÓM CÔNG KHAI KHÔNG CÓ LAYOUT (Khách lạ mua hàng nhanh) ---
                     { path: "ai-result", element: <ClientAIQuoteResult /> },
                     { path: "booking-info", element: <ClientBookingInfo /> },
+                    { path: "about", element: <About /> },
                 ]
             }
         ],
