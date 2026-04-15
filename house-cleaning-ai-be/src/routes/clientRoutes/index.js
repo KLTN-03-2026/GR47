@@ -23,6 +23,6 @@ clientRouter.get('/order-detail/:id', ClientMiddleware.protect, BookingControlle
 clientRouter.get('/my-bookings', ClientMiddleware.protect, BookingController.getMyBookings);
 
 clientRouter.post('/analyze-room-image', ClientMiddleware.protect, upload.single('room_image'), AIController.analyzeRoomImage);
-;
+
 
 export default clientRouter;

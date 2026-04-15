@@ -5,12 +5,31 @@ import mongoose from 'mongoose';
 
 const {
     MONGO_URI,
+    MONGODB_URI,
     MONGO_DB_NAME = 'house_cleaning_ai',
     MONGO_CONNECT_RETRIES = '5',
     MONGO_CONNECT_RETRY_DELAY_MS = '2000'
 } = process.env;
 
-const mongoUri = MONGO_URI || `mongodb://localhost:27017/${MONGO_DB_NAME}`;
+function normalizeEnvValue(value) {
+    if (typeof value !== 'string') return undefined;
+    const normalized = value.trim().toLowerCase();
+    if (!normalized || normalized === 'undefined' || normalized === 'null' || normalized === 'none') {
+        return undefined;
+    }
+    return value.trim();
+}
+
+const mongoDbName = normalizeEnvValue(MONGO_DB_NAME) || 'house_cleaning_ai';
+const envUri = normalizeEnvValue(MONGO_URI) || normalizeEnvValue(MONGODB_URI);
+const mongoUri = envUri || `mongodb://localhost:27017/${mongoDbName}`;
+
+if (envUri) {
+    const source = normalizeEnvValue(MONGO_URI) ? 'MONGO_URI' : 'MONGODB_URI';
+    console.log(`Using MongoDB URI from ${source}`);
+} else {
+    console.warn('Warning: no valid MongoDB URI found in MONGO_URI or MONGODB_URI. Falling back to localhost.');
+}
 
 // Các option hợp lệ hiện tại (tùy chỉnh theo nhu cầu)
 const connectOptions = {
