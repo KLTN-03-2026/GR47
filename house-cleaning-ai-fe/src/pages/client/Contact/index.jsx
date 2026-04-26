@@ -33,7 +33,7 @@ export const Contact = () => {
     e.preventDefault();
     // Giả lập xử lý gửi form
     console.log("Dữ liệu gửi đi:", formData);
-    
+
     // Hiển thị thông báo thành công và reset form
     setIsSubmitted(true);
     setFormData({ name: "", email: "", message: "" });
@@ -47,28 +47,27 @@ export const Contact = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-20 lg:py-32 font-sans overflow-hidden">
       <div className="container mx-auto px-4 md:px-6 max-w-6xl">
-        
         {/* Header Section */}
         <div className="text-center mb-16" data-aos="fade-up">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
             Liên Hệ Với <span className="text-green-600">Chúng Tôi</span>
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Bạn cần hỗ trợ hay có thắc mắc về dịch vụ? Đừng ngần ngại để lại lời nhắn, chúng tôi sẽ phản hồi bạn trong thời gian sớm nhất.
+            Bạn cần hỗ trợ hay có thắc mắc về dịch vụ? Đừng ngần ngại để lại lời
+            nhắn, chúng tôi sẽ phản hồi bạn trong thời gian sớm nhất.
           </p>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-12 bg-white rounded-3xl shadow-xl overflow-hidden">
-          
           {/* Cột Thông tin liên hệ (Trái) */}
-          <div 
+          <div
             className="lg:w-2/5 bg-green-600 p-10 md:p-12 text-white relative overflow-hidden"
             data-aos="fade-right"
           >
             {/* Background decorative elements */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-green-500 rounded-full mix-blend-multiply filter blur-3xl opacity-50 transform translate-x-1/2 -translate-y-1/2"></div>
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-green-700 rounded-full mix-blend-multiply filter blur-3xl opacity-50 transform -translate-x-1/2 translate-y-1/2"></div>
-            
+
             <div className="relative z-10">
               <h2 className="text-3xl font-bold mb-8">Thông Tin Liên Hệ</h2>
               <div className="space-y-8">
@@ -79,7 +78,8 @@ export const Contact = () => {
                   <div>
                     <h3 className="text-xl font-semibold mb-1">Địa chỉ</h3>
                     <p className="text-green-50 leading-relaxed">
-                      123 Đường Sạch Sẽ, Quận Gọn Gàng,<br />
+                      123 Đường Sạch Sẽ, Quận Gọn Gàng,
+                      <br />
                       Thành phố Hồ Chí Minh
                     </p>
                   </div>
@@ -110,8 +110,10 @@ export const Contact = () => {
 
           {/* Cột Form liên hệ (Phải) */}
           <div className="lg:w-3/5 p-10 md:p-12 relative" data-aos="fade-left">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Gửi Tin Nhắn</h2>
-            
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              Gửi Tin Nhắn
+            </h2>
+
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label
@@ -180,18 +182,21 @@ export const Contact = () => {
             </form>
 
             {/* Thông báo gửi thành công (Toast popup nhỏ) */}
-            <div 
+            <div
               className={`absolute top-4 right-4 bg-white border-l-4 border-green-500 p-4 rounded shadow-lg transition-all duration-500 flex items-center gap-3 ${
-                isSubmitted ? "opacity-100 translate-x-0" : "opacity-0 translate-x-10 pointer-events-none"
+                isSubmitted
+                  ? "opacity-100 translate-x-0"
+                  : "opacity-0 translate-x-10 pointer-events-none"
               }`}
             >
               <CheckCircle className="text-green-500 w-6 h-6" />
               <div>
                 <h4 className="font-bold text-gray-800 text-sm">Thành công!</h4>
-                <p className="text-xs text-gray-600">Tin nhắn của bạn đã được gửi.</p>
+                <p className="text-xs text-gray-600">
+                  Tin nhắn của bạn đã được gửi.
+                </p>
               </div>
             </div>
-
           </div>
         </div>
       </div>
