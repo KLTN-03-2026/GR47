@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     ClipboardList, MapPin, Clock, Calendar,
-    AlertCircle, PhoneCall, User, Play
+    AlertCircle, PhoneCall, User, Play, Navigation, CheckCircle2, PackageOpen,
+    ChevronRight
 } from "lucide-react";
 
 export const CleanerTaskList = () => {
@@ -10,6 +11,9 @@ export const CleanerTaskList = () => {
     const [tasks, setTasks] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    const [activeTab, setActiveTab] = useState("ALL");
+    const [isTabAnimating, setIsTabAnimating] = useState(false);
 
     useEffect(() => {
         const fetchInProgressTasks = async () => {
@@ -42,13 +46,65 @@ export const CleanerTaskList = () => {
         fetchInProgressTasks();
     }, []);
 
-    const renderStatus = (status) => {
-        if (status === "2") return <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-[10px] font-black uppercase">Đang di chuyển</span>;
-        if (status === "3") return <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black uppercase animate-pulse">Đang dọn dẹp</span>;
-        return <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[10px] font-black uppercase">Chưa rõ</span>;
+    const renderStatusBadge = (status) => {
+        if (status === "2") {
+            return (
+                <div className="flex items-center gap-1 bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-xl border border-yellow-200">
+                    <Navigation size={14} className="animate-pulse" />
+                    <span className="text-[10px] font-black uppercase tracking-wider">Đang di chuyển</span>
+                </div>
+            );
+        }
+        if (status === "3") {
+            return (
+                <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-3 py-1.5 rounded-xl border border-blue-200">
+                    <Play size={14} className="animate-pulse" fill="currentColor" />
+                    <span className="text-[10px] font-black uppercase tracking-wider">Đang thi công</span>
+                </div>
+            );
+        }
+        if (status === "4") {
+            return (
+                <div className="flex items-center gap-1 bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-xl border border-emerald-200">
+                    <CheckCircle2 size={14} />
+                    <span className="text-[10px] font-black uppercase tracking-wider">Hoàn thành</span>
+                </div>
+            );
+        }
+        return (
+            <div className="flex items-center gap-1 bg-gray-100 text-gray-600 px-3 py-1.5 rounded-xl border border-gray-200">
+                <AlertCircle size={14} />
+                <span className="text-[10px] font-black uppercase tracking-wider">Chưa rõ</span>
+            </div>
+        );
     };
 
-    // Hàm xử lý chuyển trang và nhét sẵn Data vào hành lý
+    const getCardLineColor = (status) => {
+        if (status === "2") return "bg-yellow-400";
+        if (status === "3") return "bg-blue-500";
+        if (status === "4") return "bg-emerald-500";
+        return "bg-gray-300";
+    };
+
+    const handleTabChange = (tabId) => {
+        setIsTabAnimating(true);
+        setTimeout(() => {
+            setActiveTab(tabId);
+            setIsTabAnimating(false);
+        }, 200);
+    };
+
+    const filteredTasks = activeTab === "ALL"
+        ? tasks
+        : tasks.filter(task => String(task.Booking_Status) === activeTab);
+
+    const tabs = [
+        { id: "ALL", label: "Tất cả" },
+        { id: "2", label: "Đang di chuyển" },
+        { id: "3", label: "Đang dọn dẹp" },
+        { id: "4", label: "Đã hoàn thành" }
+    ];
+
     const handleGoToProgress = (task) => {
         navigate(`/cleaner/order-progress/${task._id}`, {
             state: {
@@ -65,88 +121,122 @@ export const CleanerTaskList = () => {
     };
 
     if (isLoading) {
-        return <div className="min-h-screen bg-[#f4f7f6] flex items-center justify-center"><div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin" /></div>;
+        return (
+            <div className="min-h-screen bg-[#f4f7f6] flex flex-col items-center justify-center animate-fade-in">
+                <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="text-gray-400 font-bold uppercase tracking-widest text-xs animate-pulse">Đang quét Radar...</p>
+            </div>
+        );
     }
 
     return (
-        <div className="min-h-screen bg-[#f4f7f6] py-8 px-4 font-sans animate-fade-in">
-            <div className="max-w-3xl mx-auto">
-                <div className="flex items-center gap-4 mb-8">
-                    <div className="w-14 h-14 bg-gray-900 text-white rounded-2xl flex items-center justify-center shadow-lg">
-                        <ClipboardList size={28} />
+        <div className="min-h-screen bg-[#f4f7f6] py-10 px-4 sm:px-6 lg:px-8 font-sans animate-fade-in">
+            {/* Bung lụa khung bao ngoài lên max-w-7xl thay vì max-w-3xl cũ */}
+            <div className="max-w-7xl mx-auto">
+
+                {/* Header & Bộ lọc dồn lên cùng 1 hàng trên màn lớn cho đỡ tốn chỗ */}
+                <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-8 gap-6">
+                    <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 bg-gray-900 text-white rounded-2xl flex items-center justify-center shadow-lg animate-float">
+                            <ClipboardList size={32} />
+                        </div>
+                        <div>
+                            <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight">Hồ sơ công việc</h1>
+                            <p className="text-gray-500 font-medium mt-1">Bạn đang theo dõi <strong className="text-green-600">{tasks.length}</strong> nhiệm vụ</p>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Việc đang làm</h1>
-                        <p className="text-sm text-gray-500 font-medium">Bạn có <strong className="text-green-600">{tasks.length}</strong> công việc đang tiến hành</p>
+
+                    {/* Phễu Lọc (Filter Tabs) */}
+                    <div className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-gray-200 w-max overflow-x-auto no-scrollbar">
+                        {tabs.map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => handleTabChange(tab.id)}
+                                className={`px-5 py-2.5 rounded-[14px] text-xs font-bold transition-all duration-300 whitespace-nowrap flex items-center gap-2
+                                    ${activeTab === tab.id
+                                        ? "bg-gray-900 text-white shadow-md transform scale-[1.02]"
+                                        : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"}`}
+                            >
+                                {tab.label}
+                                {activeTab === tab.id && <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></div>}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
-                <div className="space-y-5">
+                {/* Danh sách nhiệm vụ - Chuyển sang dạng GRID đa cột */}
+                <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 transition-all duration-300 ${isTabAnimating ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
                     {error ? (
-                        <div className="bg-red-50 p-6 rounded-3xl text-center border border-red-100">
-                            <AlertCircle className="mx-auto text-red-400 mb-2" size={32} />
+                        <div className="col-span-full bg-red-50 p-6 rounded-3xl text-center border border-red-100 animate-shake">
+                            <AlertCircle className="mx-auto text-red-400 mb-3" size={32} />
                             <p className="text-red-600 font-bold">{error}</p>
                         </div>
-                    ) : tasks.length === 0 ? (
-                        <div className="bg-white p-10 rounded-3xl text-center border-2 border-dashed border-gray-200 shadow-sm">
-                            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
-                                <ClipboardList size={32} />
+                    ) : filteredTasks.length === 0 ? (
+                        <div className="col-span-full bg-white p-16 rounded-[2rem] text-center border border-gray-200 shadow-sm animate-fade-in-up max-w-2xl mx-auto w-full">
+                            <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-300 border border-gray-100 shadow-inner">
+                                <PackageOpen size={40} />
                             </div>
-                            <h3 className="text-lg font-black text-gray-900 mb-2">Hiện chưa có việc nào</h3>
-                            <p className="text-gray-500 text-sm">Ra bảng tin radar để chộp ngay một đơn mới nhé!</p>
-                            <button
-                                onClick={() => navigate('/cleaner/home')}
-                                className="mt-6 px-6 py-3 bg-green-600 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all"
-                            >
-                                Quét Radar Tìm Việc
-                            </button>
+                            <h3 className="text-2xl font-black text-gray-900 mb-2">Trống trơn!</h3>
+                            <p className="text-gray-500 font-medium mb-8">
+                                Bạn không có nhiệm vụ nào trong mục <strong className="text-gray-700">"{tabs.find(t => t.id === activeTab)?.label}"</strong>.
+                            </p>
+                            {activeTab === "ALL" && (
+                                <button
+                                    onClick={() => navigate('/cleaner/home')}
+                                    className="px-8 py-4 bg-green-600 text-white font-bold rounded-xl shadow-lg shadow-green-900/20 active:scale-95 transition-all"
+                                >
+                                    Quét Radar Tìm Việc Mới
+                                </button>
+                            )}
                         </div>
                     ) : (
-                        tasks.map(task => (
+                        filteredTasks.map((task, index) => (
                             <div
                                 key={task._id}
                                 onClick={() => handleGoToProgress(task)}
-                                className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-gray-100 hover:shadow-lg hover:border-green-300 hover:-translate-y-1 transition-all group relative overflow-hidden cursor-pointer"
+                                className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:border-green-300 hover:-translate-y-2 transition-all duration-300 group relative overflow-hidden cursor-pointer flex flex-col h-full animate-fade-in-up"
+                                style={{ animationDelay: `${index * 100}ms` }}
                             >
-                                <div className={`absolute top-0 left-0 w-1.5 h-full ${task.Booking_Status === "3" ? "bg-blue-500" : "bg-yellow-400"}`}></div>
+                                <div className={`absolute top-0 left-0 w-1.5 h-full ${getCardLineColor(String(task.Booking_Status))} transition-all duration-300 group-hover:w-2`}></div>
 
-                                <div className="flex justify-between items-start mb-4 pl-2">
+                                <div className="flex justify-between items-start mb-6 pl-2">
                                     <div>
-                                        <div className="flex items-center gap-2 mb-1.5">
-                                            {renderStatus(task.Booking_Status)}
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">#{task._id.slice(-6).toUpperCase()}</span>
+                                        <div className="flex items-center gap-3 mb-2.5">
+                                            {renderStatusBadge(String(task.Booking_Status))}
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-1 rounded-lg">#{task._id.slice(-6).toUpperCase()}</span>
                                         </div>
-                                        <h3 className="font-black text-lg text-gray-900 flex items-center gap-1.5">
-                                            <User size={16} className="text-gray-400" /> {task.Client_Name}
+                                        <h3 className="font-black text-xl text-gray-900 flex items-center gap-2">
+                                            <User size={18} className="text-gray-400" /> {task.Client_Name}
                                         </h3>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-2xl font-black text-green-600">{task.Total_Amount?.toLocaleString()}đ</p>
+                                    <div className="text-right shrink-0 bg-green-50 px-4 py-2.5 rounded-2xl border border-green-100">
+                                        <p className="text-[10px] font-black text-green-600/70 uppercase tracking-widest mb-1">Thu nhập</p>
+                                        <p className="text-xl font-black text-green-600 leading-none">{task.Total_Amount?.toLocaleString()}đ</p>
                                     </div>
                                 </div>
 
-                                <div className="bg-gray-50 rounded-2xl p-4 space-y-3 mb-4 ml-2">
+                                <div className="bg-gray-50 rounded-2xl p-5 space-y-4 mb-6 ml-2 border border-gray-100 group-hover:bg-white group-hover:border-green-100 transition-colors flex-grow">
                                     <div className="flex items-start gap-3">
-                                        <MapPin size={16} className="text-gray-400 mt-0.5" />
-                                        <p className="text-sm font-bold text-gray-700 leading-snug">{task.Service_Address}</p>
+                                        <MapPin size={18} className="text-gray-400 mt-0.5 shrink-0 group-hover:text-green-500 transition-colors" />
+                                        <p className="text-sm font-bold text-gray-700 leading-relaxed">{task.Service_Address}</p>
                                     </div>
-                                    <div className="flex items-center gap-6">
+                                    <div className="flex flex-wrap items-center gap-6 border-t border-gray-200/50 pt-4 mt-2">
                                         <div className="flex items-center gap-2 text-sm font-bold text-gray-600">
-                                            <Calendar size={14} className="text-gray-400" />
+                                            <Calendar size={16} className="text-gray-400" />
                                             {new Date(task.Service_Date).toLocaleDateString('vi-VN')}
                                         </div>
                                         <div className="flex items-center gap-2 text-sm font-bold text-gray-600">
-                                            <Clock size={14} className="text-gray-400" />
+                                            <Clock size={16} className="text-gray-400" />
                                             {new Date(task.Service_Date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="flex gap-3 ml-2">
+                                <div className="flex gap-3 ml-2 mt-auto">
                                     <a
                                         href={`tel:${task.Client_Phone}`}
                                         onClick={(e) => e.stopPropagation()}
-                                        className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors shrink-0 z-10 relative"
+                                        className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors shrink-0 z-10 relative border border-blue-100"
                                     >
                                         <PhoneCall size={20} />
                                     </a>
@@ -155,9 +245,11 @@ export const CleanerTaskList = () => {
                                             e.stopPropagation();
                                             handleGoToProgress(task);
                                         }}
-                                        className="flex-1 bg-gray-900 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 hover:bg-black active:scale-95 transition-all shadow-md z-10 relative"
+                                        className={`flex-1 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md z-10 relative
+                                            ${task.Booking_Status === "4" ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200" : "bg-gray-900 hover:bg-black shadow-gray-300"}`}
                                     >
-                                        TIẾP TỤC CÔNG VIỆC <Play size={16} fill="currentColor" />
+                                        {task.Booking_Status === "4" ? "XEM CHI TIẾT" : "TIẾP TỤC CÔNG VIỆC"}
+                                        <ChevronRight size={18} />
                                     </button>
                                 </div>
                             </div>

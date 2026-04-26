@@ -1,14 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import AOS from "aos";
+import "aos/dist/aos.css";
 import {
     ChevronLeft, MessageCircle, UserX, Star, Phone,
     MapPin, Clock, CreditCard, ShieldCheck, AlertTriangle,
-    Navigation, CheckCircle2, Circle, X, Send, PhoneCall,
-    Maximize2
+    Navigation, CheckCircle2, Circle, X, Send,
+    Maximize2, Cpu, Zap, Calendar, Banknote
 } from "lucide-react";
 
 // ==========================================
-// 1. TỪ ĐIỂN MAPPING (Khớp 100% với Backend & DB)
+// 1. TỪ ĐIỂN MAPPING 
 // ==========================================
 const BOOKING_STATUS_MAP = {
     "1": 'Waiting',
@@ -37,6 +39,15 @@ export const ClientOrderDetail = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    // Khởi tạo hiệu ứng AOS
+    useEffect(() => {
+        AOS.init({
+            duration: 800,
+            once: true,
+            easing: "ease-out-cubic",
+        });
+    }, []);
+
     // ==========================================
     // 2. GỌI API & CHUẨN HÓA DỮ LIỆU
     // ==========================================
@@ -47,9 +58,8 @@ export const ClientOrderDetail = () => {
                 const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
                 const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
 
-                if (!token) throw new Error("Vui lòng đăng nhập để xem đơn hàng.");
+                if (!token) throw new Error("Yêu cầu xác thực bảo mật để truy cập dữ liệu.");
 
-                // Gọi đúng route đã fix ở Backend
                 const response = await fetch(`${API_URL}/order-detail/${id}`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
@@ -61,10 +71,10 @@ export const ClientOrderDetail = () => {
 
                     setOrder({
                         id: data._id,
-                        // Mapping trạng thái từ số sang chữ
+                        shortId: data._id.slice(-6).toUpperCase(),
                         status: BOOKING_STATUS_MAP[data.Booking_Status] || 'Waiting',
                         paymentMethod: PAYMENT_STATUS_MAP[data.Payment_Status] || 'Không xác định',
-                        bookingDate: new Date(data.Service_Date).toLocaleDateString('vi-VN'),
+                        bookingDate: new Date(data.Service_Date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
                         bookingTime: new Date(data.Service_Date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
                         address: data.Service_Address,
                         totalPrice: data.Total_Amount,
@@ -81,14 +91,16 @@ export const ClientOrderDetail = () => {
                         aiDetails: data.AI_Details ? {
                             area: data.AI_Details.Area_m2,
                             messLevel: data.AI_Details.Mess_Level,
-                            // 🔥 FIX QUAN TRỌNG: Chấp nhận cả link HTTP và DATA:BASE64
                             image: (data.AI_Details.Image_Url?.startsWith('http') || data.AI_Details.Image_Url?.startsWith('data:'))
                                 ? data.AI_Details.Image_Url
                                 : "https://placehold.co/400x400/e2e8f0/64748b?text=No+Image"
                         } : null
                     });
+
+                    // Refresh AOS sau khi load data xong
+                    setTimeout(() => AOS.refresh(), 100);
                 } else {
-                    throw new Error(result.message || "Không thể tải chi tiết đơn hàng.");
+                    throw new Error(result.message || "Lỗi biên dịch dữ liệu đơn hàng.");
                 }
             } catch (err) {
                 setError(err.message);
@@ -101,28 +113,28 @@ export const ClientOrderDetail = () => {
     }, [id]);
 
     // ==========================================
-    // 3. UI HELPERS (Màu sắc & Icon)
+    // 3. UI HELPERS 
     // ==========================================
     const steps = [
-        { id: 'Waiting', label: 'Tìm người', icon: <Circle size={20} /> },
-        { id: 'Accepted', label: 'Đã nhận', icon: <Navigation size={20} /> },
-        { id: 'InProgress', label: 'Đang dọn', icon: <ShieldCheck size={20} /> },
-        { id: 'Completed', label: 'Hoàn thành', icon: <CheckCircle2 size={20} /> },
+        { id: 'Waiting', label: 'Khởi tạo', icon: <Circle size={20} /> },
+        { id: 'Accepted', label: 'Điều phối', icon: <Navigation size={20} /> },
+        { id: 'InProgress', label: 'Thực thi', icon: <ShieldCheck size={20} /> },
+        { id: 'Completed', label: 'Hoàn tất', icon: <CheckCircle2 size={20} /> },
     ];
 
-    const getStatusUI = (status) => {
+    const getStatusStyle = (status) => {
         switch (status) {
-            case 'Waiting': return { text: 'Đang chờ thợ nhận', color: 'bg-yellow-100 text-yellow-700' };
-            case 'Accepted': return { text: 'Thợ đang di chuyển', color: 'bg-blue-100 text-blue-700' };
-            case 'InProgress': return { text: 'Đang tiến hành', color: 'bg-green-100 text-green-700' };
-            case 'Completed': return { text: 'Đã hoàn thành', color: 'bg-gray-100 text-gray-700' };
-            case 'Cancelled': return { text: 'Đã hủy', color: 'bg-red-100 text-red-700' };
-            default: return { text: 'Không xác định', color: 'bg-gray-100 text-gray-500' };
+            case 'Waiting': return { text: 'Chờ xác nhận', color: 'bg-orange-50 border-orange-200 text-orange-700' };
+            case 'Accepted': return { text: 'Đang di chuyển', color: 'bg-blue-50 border-blue-200 text-blue-700' };
+            case 'InProgress': return { text: 'Đang thi công', color: 'bg-green-50 border-green-200 text-green-700' };
+            case 'Completed': return { text: 'Hoàn thành', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' };
+            case 'Cancelled': return { text: 'Đã hủy', color: 'bg-red-50 border-red-200 text-red-700' };
+            default: return { text: 'Không xác định', color: 'bg-gray-50 border-gray-200 text-gray-700' };
         }
     };
 
     // ==========================================
-    // 4. LOGIC CHAT (Simulated)
+    // 4. LOGIC CHAT
     // ==========================================
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [inputText, setInputText] = useState("");
@@ -143,56 +155,86 @@ export const ClientOrderDetail = () => {
         setInputText("");
     };
 
-    if (isLoading) return <div className="min-h-screen flex items-center justify-center font-bold text-green-600">Đang tải dữ liệu...</div>;
-    if (error) return <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <AlertTriangle className="text-red-500" size={48} />
-        <p className="font-bold">{error}</p>
-        <button onClick={() => navigate("/order-list")} className="px-4 py-2 bg-black text-white rounded-lg">Quay lại</button>
-    </div>;
+    // ==========================================
+    // RENDER UI
+    // ==========================================
+    if (isLoading) return (
+        <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center justify-center animate-fade-in">
+            <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs animate-pulse">Đang giải mã dữ liệu...</p>
+        </div>
+    );
+
+    if (error) return (
+        <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center justify-center p-4 text-center animate-fade-in-up">
+            <div data-aos="zoom-in" className="w-20 h-20 bg-red-50 text-red-500 rounded-[2rem] flex items-center justify-center mb-6 shadow-inner border border-red-100">
+                <AlertTriangle size={40} />
+            </div>
+            <h2 data-aos="fade-up" className="text-2xl font-black text-slate-900 mb-2">Truy xuất thất bại</h2>
+            <p data-aos="fade-up" data-aos-delay="100" className="font-medium text-slate-500 mb-8 max-w-md">{error}</p>
+            <button data-aos="fade-up" data-aos-delay="200" onClick={() => navigate("/order-list")} className="px-8 py-3.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-black transition-all active:scale-95 shadow-lg">
+                Quay lại Trung tâm
+            </button>
+        </div>
+    );
+
     if (!order) return null;
 
-    const currentStatus = getStatusUI(order.status);
+    const currentStatus = getStatusStyle(order.status);
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-7xl">
+        <div className="min-h-screen bg-[#f8f9fa] py-8 px-4 sm:px-6 lg:px-8 font-sans overflow-hidden">
+            <div className="mx-auto max-w-6xl">
 
-                {/* Header */}
-                <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                {/* HEADER */}
+                <div data-aos="fade-down" className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => navigate("/order-list")} className="p-2 bg-white rounded-xl shadow-sm border border-gray-100 hover:text-green-600 transition-all">
+                        <button onClick={() => navigate("/order-list")} className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-200 hover:text-green-600 hover:bg-green-50 transition-all active:scale-95">
                             <ChevronLeft size={24} />
                         </button>
                         <div>
-                            <h1 className="text-2xl font-black text-gray-900 uppercase">ĐƠN HÀNG #{order.id.slice(-8)}</h1>
-                            <p className="text-sm text-gray-500 font-medium">Lịch: {order.bookingTime} - {order.bookingDate}</p>
+                            <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                                <Cpu size={24} className="text-green-600 animate-pulse" /> MODULE: #{order.shortId}
+                            </h1>
+                            <p className="text-sm text-slate-500 font-medium mt-1">Chi tiết luồng dữ liệu dịch vụ</p>
                         </div>
                     </div>
-                    <span className={`px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest ${currentStatus.color}`}>
+                    <span className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest border ${currentStatus.color} shadow-sm`}>
                         {currentStatus.text}
                     </span>
                 </div>
 
-                <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
 
-                    {/* Cột Trái: Tiến trình & Chi tiết */}
+                    {/* CỘT TRÁI: Tiến trình & Chi tiết */}
                     <div className="lg:col-span-8 space-y-6">
 
-                        {/* Stepper */}
+                        {/* DATA PIPELINE (Stepper) */}
                         {order.status !== 'Cancelled' && (
-                            <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm overflow-x-auto">
-                                <h3 className="text-sm font-black text-gray-400 uppercase mb-8 tracking-widest">Tiến độ</h3>
-                                <div className="flex items-center justify-between relative min-w-[400px]">
-                                    <div className="absolute top-5 left-0 w-full h-1 bg-gray-100 -z-0" />
+                            <div data-aos="fade-right" className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm overflow-x-auto relative">
+                                <h3 className="text-[11px] font-black text-slate-400 uppercase mb-8 tracking-widest flex items-center gap-2">
+                                    <Zap size={14} className="text-yellow-500 animate-pulse" /> Tiến trình thực thi
+                                </h3>
+                                <div className="flex items-center justify-between relative min-w-[400px] px-4">
+                                    {/* Mạch điện ngầm */}
+                                    <div className="absolute top-1/2 left-8 right-8 h-1.5 bg-slate-100 -translate-y-1/2 rounded-full" />
+
                                     {steps.map((step, index) => {
                                         const stepOrder = ['Waiting', 'Accepted', 'InProgress', 'Completed'];
                                         const isActive = stepOrder.indexOf(order.status) >= index;
+                                        const isCurrent = stepOrder.indexOf(order.status) === index;
+
                                         return (
                                             <div key={step.id} className="relative z-10 flex flex-col items-center gap-3">
-                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isActive ? 'bg-green-600 text-white shadow-lg' : 'bg-white border-2 border-gray-100 text-gray-300'}`}>
+                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 
+                                                    ${isActive ? 'bg-green-600 text-white shadow-[0_0_20px_rgba(34,197,94,0.4)] scale-110' : 'bg-white border-2 border-slate-200 text-slate-300'}
+                                                    ${isCurrent && 'ring-4 ring-green-100 animate-pulse'}
+                                                `}>
                                                     {step.icon}
                                                 </div>
-                                                <span className={`text-xs font-bold ${isActive ? 'text-green-700' : 'text-gray-300'}`}>{step.label}</span>
+                                                <span className={`text-[11px] font-black uppercase tracking-wider transition-colors duration-500 ${isActive ? 'text-green-700' : 'text-slate-400'}`}>
+                                                    {step.label}
+                                                </span>
                                             </div>
                                         );
                                     })}
@@ -200,68 +242,115 @@ export const ClientOrderDetail = () => {
                             </div>
                         )}
 
-                        {/* Info */}
-                        <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-8">
-                            <div>
-                                <h3 className="text-sm font-black text-gray-900 uppercase mb-6 flex items-center gap-2">
-                                    <MapPin className="text-green-600" size={18} /> Địa chỉ dọn dẹp
+                        {/* INFO MODULE */}
+                        <div data-aos="fade-up" data-aos-delay="100" className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm space-y-8 relative overflow-hidden group">
+                            {/* Decor Line (Có hiệu ứng shine nhẹ khi hover vào khối) */}
+                            <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-100 group-hover:bg-green-400 transition-colors duration-500"></div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pl-4">
+                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:bg-white hover:border-green-100 transition-colors duration-300">
+                                    <div className="flex items-center gap-1.5 text-slate-400 mb-2">
+                                        <Calendar size={16} />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Lịch trình</span>
+                                    </div>
+                                    <p className="font-bold text-slate-800 text-base">{order.bookingDate}</p>
+                                </div>
+                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:bg-white hover:border-green-100 transition-colors duration-300">
+                                    <div className="flex items-center gap-1.5 text-slate-400 mb-2">
+                                        <Clock size={16} />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Khung giờ</span>
+                                    </div>
+                                    <p className="font-bold text-slate-800 text-base">{order.bookingTime}</p>
+                                </div>
+                            </div>
+
+                            <div className="pl-4">
+                                <h3 className="text-[11px] font-black text-slate-400 uppercase mb-2 tracking-widest flex items-center gap-2">
+                                    <MapPin size={14} /> Tọa độ thực thi
                                 </h3>
-                                <p className="text-gray-700 font-medium bg-gray-50 p-4 rounded-xl border border-gray-100">{order.address}</p>
+                                <p className="text-slate-800 font-bold bg-slate-50 p-4 rounded-2xl border border-slate-100 leading-snug">
+                                    {order.address}
+                                </p>
                             </div>
 
                             {order.aiDetails && (
-                                <div className="pt-6 border-t border-gray-50">
-                                    <h3 className="text-sm font-black text-gray-900 uppercase mb-4 flex items-center gap-2">
-                                        <Maximize2 className="text-blue-500" size={18} /> Kết quả AI quét phòng
+                                <div className="pt-6 border-t border-slate-100 pl-4">
+                                    <h3 className="text-[11px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                                        <Maximize2 className="text-blue-500" size={14} /> Dữ liệu Nội soi AI
                                     </h3>
-                                    <div className="flex flex-col sm:flex-row gap-6">
-                                        <img
-                                            src={order.aiDetails.image}
-                                            alt="Room"
-                                            className="w-full sm:w-48 h-32 object-cover rounded-2xl shadow-md border border-gray-200"
-                                            onError={(e) => e.target.src = "https://placehold.co/400x300?text=Error+Loading+Image"}
-                                        />
-                                        <div className="space-y-3">
-                                            <p className="text-sm text-gray-500">Diện tích: <strong className="text-gray-900 text-lg">{order.aiDetails.area} m²</strong></p>
-                                            <p className="text-sm text-gray-500">Độ bừa bộn: <strong className="text-gray-900">{MESS_LEVEL_MAP[order.aiDetails.messLevel] || 'Bình thường'}</strong></p>
+                                    <div className="flex flex-col sm:flex-row gap-6 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                        <div className="relative">
+                                            <img
+                                                src={order.aiDetails.image}
+                                                alt="Room Scan"
+                                                className="w-full sm:w-40 h-28 object-cover rounded-xl shadow-sm border border-slate-200"
+                                                onError={(e) => e.target.src = "https://placehold.co/400x300?text=Error+Loading+Image"}
+                                            />
+                                            <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-sm text-white text-[9px] font-black px-2 py-1 rounded-md tracking-widest uppercase animate-pulse">
+                                                Scanned
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3 flex flex-col justify-center">
+                                            <div className="flex justify-between gap-8 border-b border-slate-200/50 pb-2">
+                                                <span className="text-xs font-bold text-slate-400">Diện tích đo đạc:</span>
+                                                <strong className="text-slate-900">{order.aiDetails.area} m²</strong>
+                                            </div>
+                                            <div className="flex justify-between gap-8">
+                                                <span className="text-xs font-bold text-slate-400">Phân cấp bừa bộn:</span>
+                                                <strong className="text-orange-600">{MESS_LEVEL_MAP[order.aiDetails.messLevel] || 'Bình thường'}</strong>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             )}
 
-                            <div className="pt-8 border-t border-gray-50 flex justify-between items-center">
-                                <div className="flex items-center gap-3">
-                                    <CreditCard className="text-green-600" size={24} />
-                                    <div>
-                                        <p className="text-[10px] font-black text-gray-400 uppercase">Thanh toán</p>
-                                        <p className="text-gray-700 font-bold">{order.paymentMethod}</p>
-                                    </div>
+                            <div className="pt-6 border-t border-slate-100 pl-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><CreditCard size={14} /> Cổng thanh toán</p>
+                                    <p className="text-slate-800 font-bold">{order.paymentMethod}</p>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase">Tổng tiền</p>
-                                    <p className="text-3xl font-black text-green-600">{order.totalPrice.toLocaleString()}đ</p>
+                                <div className="sm:text-right bg-green-50 px-5 py-3 rounded-2xl border border-green-100">
+                                    <p className="text-[10px] font-black text-green-600/60 uppercase tracking-widest mb-1">Giá trị quy đổi</p>
+                                    <p className="text-2xl font-black text-green-600">{order.totalPrice.toLocaleString()}đ</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Cột Phải: Nhân viên & Chat */}
+                    {/* CỘT PHẢI: Nhân viên & Chat */}
                     <div className="lg:col-span-4 space-y-6">
-                        <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-xl shadow-green-900/5">
-                            <h3 className="text-xs font-black text-gray-400 uppercase mb-6 tracking-widest text-center">Người phụ trách</h3>
+                        <div data-aos="fade-left" data-aos-delay="200" className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm relative overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+                            {/* Decor Background */}
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-[100px] -z-0"></div>
+
+                            <h3 className="text-[11px] font-black text-slate-400 uppercase mb-8 tracking-widest relative z-10 flex items-center gap-2">
+                                <ShieldCheck size={14} /> Nhân sự tiếp nhận
+                            </h3>
+
                             {order.cleaner ? (
-                                <div className="flex flex-col items-center text-center">
-                                    <img src={order.cleaner.avatar} alt="Avatar" className="w-24 h-24 rounded-3xl object-cover ring-4 ring-green-50 mb-4" />
-                                    <h4 className="text-xl font-black text-gray-900">{order.cleaner.name}</h4>
-                                    <p className="text-sm font-bold text-gray-400 mt-1"><Phone size={14} className="inline mr-1" /> {order.cleaner.phone}</p>
-                                    <button onClick={() => setIsChatOpen(true)} className="w-full mt-8 py-4 bg-green-600 text-white rounded-2xl font-black hover:bg-green-700 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2">
-                                        <MessageCircle size={20} /> Nhắn tin
+                                <div className="flex flex-col items-center text-center relative z-10">
+                                    <div className="relative">
+                                        <img src={order.cleaner.avatar} alt="Avatar" className="w-24 h-24 rounded-3xl object-cover ring-4 ring-emerald-50 mb-4 shadow-md animate-float" />
+                                        <div className="absolute -bottom-2 -right-2 bg-emerald-500 text-white p-1.5 rounded-lg shadow-lg">
+                                            <CheckCircle2 size={16} />
+                                        </div>
+                                    </div>
+                                    <h4 className="text-xl font-black text-slate-900">{order.cleaner.name}</h4>
+                                    <p className="text-sm font-bold text-slate-500 mt-2 bg-slate-50 px-3 py-1 rounded-lg border border-slate-100 flex items-center gap-2">
+                                        <Phone size={14} className="text-slate-400" /> {order.cleaner.phone}
+                                    </p>
+
+                                    <button
+                                        onClick={() => setIsChatOpen(true)}
+                                        className="w-full mt-8 py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-black transition-all shadow-lg shadow-slate-900/20 active:scale-95 flex items-center justify-center gap-2"
+                                    >
+                                        <MessageCircle size={20} /> Kích hoạt kênh Chat
                                     </button>
                                 </div>
                             ) : (
-                                <div className="py-10 text-center text-gray-400 italic font-bold">
-                                    <UserX size={48} className="mx-auto mb-4 opacity-20" />
-                                    Hệ thống đang điều phối nhân viên...
+                                <div className="py-10 text-center text-slate-400 font-bold relative z-10">
+                                    <UserX size={48} className="mx-auto mb-4 opacity-30 text-slate-300 animate-pulse" />
+                                    Hệ thống đang điều phối nhân sự...
                                 </div>
                             )}
                         </div>
@@ -269,30 +358,51 @@ export const ClientOrderDetail = () => {
                 </div>
             </div>
 
-            {/* Modal Chat */}
+            {/* MODAL CHAT (Kênh mã hóa đầu cuối) */}
             {isChatOpen && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end p-4">
-                    <div className="bg-white w-full sm:w-[400px] rounded-3xl shadow-2xl flex flex-col overflow-hidden">
-                        <header className="px-6 py-4 border-b flex justify-between items-center bg-green-600 text-white">
+                <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex justify-end p-4 sm:p-6 animate-fade-in">
+                    <div className="bg-white w-full sm:w-[400px] rounded-[2rem] shadow-2xl flex flex-col overflow-hidden animate-fade-in-right border border-slate-200">
+                        <header className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                             <div className="flex items-center gap-3">
-                                <img src={order.cleaner?.avatar} className="w-10 h-10 rounded-full" alt="Avatar" />
-                                <span className="font-bold">{order.cleaner?.name}</span>
+                                <div className="relative">
+                                    <img src={order.cleaner?.avatar} className="w-10 h-10 rounded-xl object-cover" alt="Avatar" />
+                                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full animate-pulse"></div>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="font-black text-slate-900 text-sm">{order.cleaner?.name}</span>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Đang trực tuyến</span>
+                                </div>
                             </div>
-                            <button onClick={() => setIsChatOpen(false)}><X /></button>
+                            <button onClick={() => setIsChatOpen(false)} className="p-2 text-slate-400 hover:bg-slate-200 rounded-full transition-all">
+                                <X size={20} />
+                            </button>
                         </header>
-                        <main className="flex-1 overflow-y-auto p-4 space-y-4">
+
+                        <main className="flex-1 overflow-y-auto p-6 space-y-4 bg-white">
+                            <div className="text-center pb-2">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full">Kênh mã hóa đầu cuối</span>
+                            </div>
                             {messages.map(msg => (
-                                <div key={msg.id} className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`p-3 rounded-2xl max-w-[80%] ${msg.sender === 'me' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-800'}`}>
+                                <div key={msg.id} className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'} animate-fade-in-up`}>
+                                    <div className={`p-4 rounded-2xl max-w-[85%] text-sm font-medium shadow-sm 
+                                        ${msg.sender === 'me' ? 'bg-slate-900 text-white rounded-tr-sm' : 'bg-slate-50 text-slate-800 border border-slate-100 rounded-tl-sm'}`}>
                                         {msg.text}
                                     </div>
                                 </div>
                             ))}
                             <div ref={bottomRef} />
                         </main>
-                        <form onSubmit={handleSendMessage} className="p-4 border-t flex gap-2">
-                            <input value={inputText} onChange={e => setInputText(e.target.value)} className="flex-1 bg-gray-100 rounded-xl px-4 outline-none" placeholder="Nhập tin nhắn..." />
-                            <button className="p-3 bg-green-600 text-white rounded-xl"><Send size={20} /></button>
+
+                        <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-100 bg-slate-50 flex gap-2">
+                            <input
+                                value={inputText}
+                                onChange={e => setInputText(e.target.value)}
+                                className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 text-sm font-medium transition-all"
+                                placeholder="Nhập tọa độ / thông điệp..."
+                            />
+                            <button disabled={!inputText.trim()} className="p-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 shadow-sm">
+                                <Send size={20} />
+                            </button>
                         </form>
                     </div>
                 </div>

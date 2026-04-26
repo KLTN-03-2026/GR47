@@ -18,6 +18,7 @@ import { ClientProfile } from "../../pages/client/Profile/index.jsx";
 import { ForgotPassword } from "../../pages/client/ForgotPassword/index.jsx";
 import { About } from "../../pages/client/About/index.jsx";
 import { Contact } from "../../pages/client/Contact/index.jsx";
+import { ClientServicePage } from "../../pages/client/Services/index.jsx";
 
 // ==========================================
 // 1. VIẾT THẲNG LOGIC BẢO VỆ ROUTE TẠI ĐÂY
@@ -67,6 +68,7 @@ export const clientRoutes = [
           { path: "booking-info", element: <ClientBookingInfo /> },
           { path: "about", element: <About /> },
           { path: "contact", element: <Contact /> },
+          { path: "services", element: <ClientServicePage /> },
         ],
       },
     ],
