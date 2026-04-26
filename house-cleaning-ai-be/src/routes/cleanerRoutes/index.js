@@ -12,7 +12,7 @@ cleanerRouter.get('/check-auth', CleanerMiddleware.protect, CleanerController.ch
 cleanerRouter.get('/get-booking-waiting', CleanerMiddleware.protect, BookingController.getWaitingBookingsForCleaner);
 cleanerRouter.get('/get-booking-detail-waiting/:id', CleanerMiddleware.protect, BookingController.getBookingDetailWaitingForCleaner);
 cleanerRouter.post('/accept-booking/:id', CleanerMiddleware.protect, BookingController.acceptBooking);
-
+cleanerRouter.get('/get-booking-detail/:id', CleanerMiddleware.protect, BookingController.getBookingDetailForCleaner);
 cleanerRouter.get('/get-booking-in-progress', CleanerMiddleware.protect, BookingController.getInProgressBookingsForCleaner);
-
+cleanerRouter.post('/check-in-and-check-out/:id', CleanerMiddleware.protect, BookingController.checkInAndCheckOut);
 export default cleanerRouter;
