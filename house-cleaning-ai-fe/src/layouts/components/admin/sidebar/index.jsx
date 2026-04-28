@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import {
     Server, LayoutDashboard, Users, Briefcase,
     ClipboardList, BarChart3, Settings, LogOut
@@ -7,8 +9,8 @@ import {
 export const AdminSidebar = () => {
     const location = useLocation();
     const navigate = useNavigate();
+    const [hoveredItem, setHoveredItem] = useState(null);
 
-    // Danh sách các menu quản trị
     const menuItems = [
         { name: "Tổng quan", path: "/admin/dashboard", icon: LayoutDashboard },
         { name: "Người dùng", path: "/admin/users", icon: Users },
@@ -18,64 +20,98 @@ export const AdminSidebar = () => {
         { name: "Cài đặt hệ thống", path: "/admin/settings", icon: Settings },
     ];
 
-    // ĐÃ SỬA: Đăng xuất thẳng và xóa sạch Token
     const handleLogout = () => {
-        // Xóa Token và User Data của Admin khỏi LocalStorage
         localStorage.removeItem("admin_token");
         localStorage.removeItem("admin_user");
-
-        // Chuyển hướng thẳng về trang đăng nhập CMS
         navigate("/admin/login", { replace: true });
     };
 
     return (
-        <aside className="w-64 bg-[#0f172a] text-slate-300 flex flex-col h-full shadow-2xl z-20 shrink-0 relative">
-            {/* Background glow mờ */}
-            <div className="absolute top-0 left-0 w-full h-32 bg-blue-600/10 blur-[50px] pointer-events-none"></div>
+        <aside className="w-16 bg-transparent flex flex-col h-full z-20 shrink-0 relative">
 
-            {/* Logo */}
-            <div className="h-20 flex items-center px-6 border-b border-slate-800 relative z-10">
-                <Link to="/admin/dashboard" className="flex items-center gap-3">
-                    <div className="bg-slate-800 p-2 rounded-lg text-blue-400 border border-slate-700">
-                        <Server size={22} strokeWidth={2} />
-                    </div>
-                    <span className="text-2xl font-black text-white tracking-tight">CleanAI <span className="text-blue-500">CMS</span></span>
+            {/* Logo icon */}
+            <div className="h-20 flex items-center justify-center border-b border-slate-200">
+                <Link
+                    to="/admin/dashboard"
+                    className="p-2 rounded-lg text-[#0f172a] hover:bg-slate-100 transition-colors"
+                >
+                    <Server size={22} strokeWidth={2} />
                 </Link>
             </div>
 
             {/* Menu Items */}
-            <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1 z-10">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2 mb-4">Menu quản trị</p>
-
+            <div className="flex-1 py-6 px-2 space-y-1 flex flex-col items-center">
                 {menuItems.map((item) => {
                     const isActive = location.pathname.includes(item.path);
                     const Icon = item.icon;
+                    const isHovered = hoveredItem === item.name;
 
                     return (
-                        <Link
+                        <div
                             key={item.name}
-                            to={item.path}
-                            className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all
-                ${isActive
-                                    ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
-                                    : "hover:bg-slate-800 hover:text-white"}`}
+                            className="relative w-full flex justify-center"
+                            onMouseEnter={() => setHoveredItem(item.name)}
+                            onMouseLeave={() => setHoveredItem(null)}
                         >
-                            <Icon size={20} className={isActive ? "text-white" : "text-slate-400"} />
-                            {item.name}
-                        </Link>
+                            <Link
+                                to={item.path}
+                                className={`p-3 rounded-xl transition-all flex items-center justify-center
+                                    ${isActive
+                                        ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
+                                        : "text-[#0f172a] hover:bg-slate-100"
+                                    }`}
+                            >
+                                <Icon size={20} />
+                            </Link>
+
+                            {/* Flyout label — đè lên Outlet */}
+                            <AnimatePresence>
+                                {isHovered && (
+                                    <motion.div
+                                        initial={{ opacity: 0, x: -28 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -28 }}
+                                        transition={{
+                                            duration: 0.18,
+                                            ease: "easeOut"
+                                        }}
+                                        className="absolute left-full top-1/2 -translate-y-1/2 ml-3 z-50 pointer-events-none"
+                                    >
+                                        <div className="relative bg-blue-600 text-white text-xs font-semibold px-3 py-2 rounded-lg whitespace-nowrap shadow-xl">
+                                            {item.name}
+
+                                            <span className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-blue-600" />
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     );
                 })}
             </div>
 
-            {/* Nút Đăng xuất */}
-            <div className="p-4 border-t border-slate-800 z-10">
+            {/* Logout */}
+            <div
+                className="p-2 border-t border-slate-200 flex justify-center relative"
+                onMouseEnter={() => setHoveredItem("logout")}
+                onMouseLeave={() => setHoveredItem(null)}
+            >
                 <button
                     onClick={handleLogout}
-                    className="flex items-center gap-3 w-full px-3 py-3 rounded-xl text-sm font-bold text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                    className="p-3 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
                 >
                     <LogOut size={20} />
-                    Đăng xuất CMS
                 </button>
+
+                {/* Flyout logout */}
+                {hoveredItem === "logout" && (
+                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 z-50 pointer-events-none">
+                        <div className="bg-[#0f172a] text-white text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xl">
+                            Đăng xuất CMS
+                            <span className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#0f172a]" />
+                        </div>
+                    </div>
+                )}
             </div>
         </aside>
     );
