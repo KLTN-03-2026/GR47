@@ -58,7 +58,7 @@ export const ClientOrderDetail = () => {
                 const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
                 const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
 
-                if (!token) throw new Error("Yêu cầu xác thực bảo mật để truy cập dữ liệu.");
+                if (!token) throw new Error("Yêu cầu đăng nhập để xem chi tiết đơn hàng.");
 
                 const response = await fetch(`${API_URL}/order-detail/${id}`, {
                     headers: { "Authorization": `Bearer ${token}` }
@@ -100,7 +100,7 @@ export const ClientOrderDetail = () => {
                     // Refresh AOS sau khi load data xong
                     setTimeout(() => AOS.refresh(), 100);
                 } else {
-                    throw new Error(result.message || "Lỗi biên dịch dữ liệu đơn hàng.");
+                    throw new Error(result.message || "Không thể tải dữ liệu đơn hàng.");
                 }
             } catch (err) {
                 setError(err.message);
@@ -116,17 +116,17 @@ export const ClientOrderDetail = () => {
     // 3. UI HELPERS 
     // ==========================================
     const steps = [
-        { id: 'Waiting', label: 'Khởi tạo', icon: <Circle size={20} /> },
-        { id: 'Accepted', label: 'Điều phối', icon: <Navigation size={20} /> },
-        { id: 'InProgress', label: 'Thực thi', icon: <ShieldCheck size={20} /> },
-        { id: 'Completed', label: 'Hoàn tất', icon: <CheckCircle2 size={20} /> },
+        { id: 'Waiting', label: 'Tìm thợ', icon: <Circle size={20} /> },
+        { id: 'Accepted', label: 'Đã nhận', icon: <Navigation size={20} /> },
+        { id: 'InProgress', label: 'Đang dọn', icon: <ShieldCheck size={20} /> },
+        { id: 'Completed', label: 'Hoàn thành', icon: <CheckCircle2 size={20} /> },
     ];
 
     const getStatusStyle = (status) => {
         switch (status) {
-            case 'Waiting': return { text: 'Chờ xác nhận', color: 'bg-orange-50 border-orange-200 text-orange-700' };
-            case 'Accepted': return { text: 'Đang di chuyển', color: 'bg-blue-50 border-blue-200 text-blue-700' };
-            case 'InProgress': return { text: 'Đang thi công', color: 'bg-green-50 border-green-200 text-green-700' };
+            case 'Waiting': return { text: 'Chờ nhận đơn', color: 'bg-orange-50 border-orange-200 text-orange-700' };
+            case 'Accepted': return { text: 'Thợ đang đến', color: 'bg-blue-50 border-blue-200 text-blue-700' };
+            case 'InProgress': return { text: 'Đang dọn dẹp', color: 'bg-green-50 border-green-200 text-green-700' };
             case 'Completed': return { text: 'Hoàn thành', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' };
             case 'Cancelled': return { text: 'Đã hủy', color: 'bg-red-50 border-red-200 text-red-700' };
             default: return { text: 'Không xác định', color: 'bg-gray-50 border-gray-200 text-gray-700' };
@@ -161,7 +161,7 @@ export const ClientOrderDetail = () => {
     if (isLoading) return (
         <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center justify-center animate-fade-in">
             <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs animate-pulse">Đang giải mã dữ liệu...</p>
+            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs animate-pulse">Đang tải dữ liệu...</p>
         </div>
     );
 
@@ -170,10 +170,10 @@ export const ClientOrderDetail = () => {
             <div data-aos="zoom-in" className="w-20 h-20 bg-red-50 text-red-500 rounded-[2rem] flex items-center justify-center mb-6 shadow-inner border border-red-100">
                 <AlertTriangle size={40} />
             </div>
-            <h2 data-aos="fade-up" className="text-2xl font-black text-slate-900 mb-2">Truy xuất thất bại</h2>
+            <h2 data-aos="fade-up" className="text-2xl font-black text-slate-900 mb-2">Không thể tải đơn hàng</h2>
             <p data-aos="fade-up" data-aos-delay="100" className="font-medium text-slate-500 mb-8 max-w-md">{error}</p>
             <button data-aos="fade-up" data-aos-delay="200" onClick={() => navigate("/order-list")} className="px-8 py-3.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-black transition-all active:scale-95 shadow-lg">
-                Quay lại Trung tâm
+                Quay lại danh sách
             </button>
         </div>
     );
@@ -194,9 +194,9 @@ export const ClientOrderDetail = () => {
                         </button>
                         <div>
                             <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                                <Cpu size={24} className="text-green-600 animate-pulse" /> MODULE: #{order.shortId}
+                                ĐƠN HÀNG #{order.shortId}
                             </h1>
-                            <p className="text-sm text-slate-500 font-medium mt-1">Chi tiết luồng dữ liệu dịch vụ</p>
+                            <p className="text-sm text-slate-500 font-medium mt-1">Chi tiết đơn dọn dẹp của bạn</p>
                         </div>
                     </div>
                     <span className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest border ${currentStatus.color} shadow-sm`}>
@@ -213,7 +213,7 @@ export const ClientOrderDetail = () => {
                         {order.status !== 'Cancelled' && (
                             <div data-aos="fade-right" className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm overflow-x-auto relative">
                                 <h3 className="text-[11px] font-black text-slate-400 uppercase mb-8 tracking-widest flex items-center gap-2">
-                                    <Zap size={14} className="text-yellow-500 animate-pulse" /> Tiến trình thực thi
+                                    <Zap size={14} className="text-yellow-500 animate-pulse" /> Trạng thái đơn hàng
                                 </h3>
                                 <div className="flex items-center justify-between relative min-w-[400px] px-4">
                                     {/* Mạch điện ngầm */}
@@ -244,21 +244,21 @@ export const ClientOrderDetail = () => {
 
                         {/* INFO MODULE */}
                         <div data-aos="fade-up" data-aos-delay="100" className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm space-y-8 relative overflow-hidden group">
-                            {/* Decor Line (Có hiệu ứng shine nhẹ khi hover vào khối) */}
+                            {/* Decor Line */}
                             <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-100 group-hover:bg-green-400 transition-colors duration-500"></div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pl-4">
                                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:bg-white hover:border-green-100 transition-colors duration-300">
                                     <div className="flex items-center gap-1.5 text-slate-400 mb-2">
                                         <Calendar size={16} />
-                                        <span className="text-[10px] font-black uppercase tracking-widest">Lịch trình</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Ngày dọn</span>
                                     </div>
                                     <p className="font-bold text-slate-800 text-base">{order.bookingDate}</p>
                                 </div>
                                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:bg-white hover:border-green-100 transition-colors duration-300">
                                     <div className="flex items-center gap-1.5 text-slate-400 mb-2">
                                         <Clock size={16} />
-                                        <span className="text-[10px] font-black uppercase tracking-widest">Khung giờ</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Giờ dọn</span>
                                     </div>
                                     <p className="font-bold text-slate-800 text-base">{order.bookingTime}</p>
                                 </div>
@@ -266,7 +266,7 @@ export const ClientOrderDetail = () => {
 
                             <div className="pl-4">
                                 <h3 className="text-[11px] font-black text-slate-400 uppercase mb-2 tracking-widest flex items-center gap-2">
-                                    <MapPin size={14} /> Tọa độ thực thi
+                                    <MapPin size={14} /> Địa chỉ dọn dẹp
                                 </h3>
                                 <p className="text-slate-800 font-bold bg-slate-50 p-4 rounded-2xl border border-slate-100 leading-snug">
                                     {order.address}
@@ -276,7 +276,7 @@ export const ClientOrderDetail = () => {
                             {order.aiDetails && (
                                 <div className="pt-6 border-t border-slate-100 pl-4">
                                     <h3 className="text-[11px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
-                                        <Maximize2 className="text-blue-500" size={14} /> Dữ liệu Nội soi AI
+                                        <Maximize2 className="text-blue-500" size={14} /> Ảnh AI quét phòng
                                     </h3>
                                     <div className="flex flex-col sm:flex-row gap-6 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                                         <div className="relative">
@@ -296,7 +296,7 @@ export const ClientOrderDetail = () => {
                                                 <strong className="text-slate-900">{order.aiDetails.area} m²</strong>
                                             </div>
                                             <div className="flex justify-between gap-8">
-                                                <span className="text-xs font-bold text-slate-400">Phân cấp bừa bộn:</span>
+                                                <span className="text-xs font-bold text-slate-400">Độ bừa bộn:</span>
                                                 <strong className="text-orange-600">{MESS_LEVEL_MAP[order.aiDetails.messLevel] || 'Bình thường'}</strong>
                                             </div>
                                         </div>
@@ -306,11 +306,11 @@ export const ClientOrderDetail = () => {
 
                             <div className="pt-6 border-t border-slate-100 pl-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                 <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><CreditCard size={14} /> Cổng thanh toán</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><CreditCard size={14} /> Phương thức thanh toán</p>
                                     <p className="text-slate-800 font-bold">{order.paymentMethod}</p>
                                 </div>
                                 <div className="sm:text-right bg-green-50 px-5 py-3 rounded-2xl border border-green-100">
-                                    <p className="text-[10px] font-black text-green-600/60 uppercase tracking-widest mb-1">Giá trị quy đổi</p>
+                                    <p className="text-[10px] font-black text-green-600/60 uppercase tracking-widest mb-1">Tổng tiền</p>
                                     <p className="text-2xl font-black text-green-600">{order.totalPrice.toLocaleString()}đ</p>
                                 </div>
                             </div>
@@ -324,7 +324,7 @@ export const ClientOrderDetail = () => {
                             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-[100px] -z-0"></div>
 
                             <h3 className="text-[11px] font-black text-slate-400 uppercase mb-8 tracking-widest relative z-10 flex items-center gap-2">
-                                <ShieldCheck size={14} /> Nhân sự tiếp nhận
+                                <ShieldCheck size={14} /> Thông tin người dọn
                             </h3>
 
                             {order.cleaner ? (
@@ -344,13 +344,13 @@ export const ClientOrderDetail = () => {
                                         onClick={() => setIsChatOpen(true)}
                                         className="w-full mt-8 py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-black transition-all shadow-lg shadow-slate-900/20 active:scale-95 flex items-center justify-center gap-2"
                                     >
-                                        <MessageCircle size={20} /> Kích hoạt kênh Chat
+                                        <MessageCircle size={20} /> Nhắn tin cho thợ
                                     </button>
                                 </div>
                             ) : (
                                 <div className="py-10 text-center text-slate-400 font-bold relative z-10">
                                     <UserX size={48} className="mx-auto mb-4 opacity-30 text-slate-300 animate-pulse" />
-                                    Hệ thống đang điều phối nhân sự...
+                                    Hệ thống đang tìm thợ dọn dẹp...
                                 </div>
                             )}
                         </div>
@@ -358,7 +358,7 @@ export const ClientOrderDetail = () => {
                 </div>
             </div>
 
-            {/* MODAL CHAT (Kênh mã hóa đầu cuối) */}
+            {/* MODAL CHAT */}
             {isChatOpen && (
                 <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex justify-end p-4 sm:p-6 animate-fade-in">
                     <div className="bg-white w-full sm:w-[400px] rounded-[2rem] shadow-2xl flex flex-col overflow-hidden animate-fade-in-right border border-slate-200">
@@ -380,7 +380,7 @@ export const ClientOrderDetail = () => {
 
                         <main className="flex-1 overflow-y-auto p-6 space-y-4 bg-white">
                             <div className="text-center pb-2">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full">Kênh mã hóa đầu cuối</span>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full">Tin nhắn được bảo mật</span>
                             </div>
                             {messages.map(msg => (
                                 <div key={msg.id} className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'} animate-fade-in-up`}>
@@ -398,7 +398,7 @@ export const ClientOrderDetail = () => {
                                 value={inputText}
                                 onChange={e => setInputText(e.target.value)}
                                 className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 text-sm font-medium transition-all"
-                                placeholder="Nhập tọa độ / thông điệp..."
+                                placeholder="Nhập tin nhắn..."
                             />
                             <button disabled={!inputText.trim()} className="p-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 shadow-sm">
                                 <Send size={20} />
