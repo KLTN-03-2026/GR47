@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
     ChevronLeft, MapPin, Navigation, Play,
     CheckCircle2, PhoneCall, MessageSquare, Clock,
-    X, Send, AlertCircle
+    X, Send, AlertCircle, ShieldAlert
 } from "lucide-react";
 
 export const CleanerOrderProgress = () => {
@@ -11,7 +11,7 @@ export const CleanerOrderProgress = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    // 1. HỨNG DATA TỪ TRANG TRƯỚC TRUYỀN SANG (Linh hoạt cho cả Waiting và Task List)
+    // 1. HỨNG DATA TẠM 
     const rawPassedData = location.state?.passedOrderData;
 
     const mappedPassedData = rawPassedData ? {
@@ -24,7 +24,7 @@ export const CleanerOrderProgress = () => {
     } : null;
 
     // ==========================================
-    // 2. STATES QUẢN LÝ DỮ LIỆU & TRẠNG THÁI
+    // 2. STATES
     // ==========================================
     const [orderData, setOrderData] = useState(mappedPassedData);
     const [isLoading, setIsLoading] = useState(!mappedPassedData);
@@ -33,11 +33,14 @@ export const CleanerOrderProgress = () => {
 
     const [workStatus, setWorkStatus] = useState("MOVING");
 
-    // === TRẠNG THÁI KHUNG CHAT ===
+    // STATE CHO MODAL & THÔNG BÁO CUSTOM
+    const [confirmAction, setConfirmAction] = useState(null);
+    const [actionError, setActionError] = useState(""); // 🔥 STATE MỚI: Bắt lỗi ngay trong Modal
+    const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [inputText, setInputText] = useState("");
     const bottomRef = useRef(null);
-
     const [messages, setMessages] = useState([
         { id: 1, sender: "other", text: `Chào bạn, mình là khách đặt đơn ${id.slice(-6).toUpperCase()}.`, time: "10:15" },
         { id: 2, sender: "other", text: "Đến nơi thì gọi số này hoặc nhắn tin nhé.", time: "10:15" },
@@ -50,29 +53,28 @@ export const CleanerOrderProgress = () => {
     const handleSendMessage = (e) => {
         e.preventDefault();
         if (!inputText.trim()) return;
-
-        const newMessage = {
-            id: Date.now(), sender: "me", text: inputText,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
+        const newMessage = { id: Date.now(), sender: "me", text: inputText, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
         setMessages([...messages, newMessage]);
         setInputText("");
+    };
 
-        setTimeout(() => {
-            setMessages(prev => [...prev, {
-                id: Date.now() + 1, sender: "other", text: "Ok bạn nhé!",
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            }]);
-        }, 1500);
+    const showToast = (message, type = "success") => {
+        setToast({ show: true, message, type });
+        setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3500);
+    };
+
+    const mapDBStatusToUI = (statusNumber) => {
+        const num = Number(statusNumber);
+        if (num === 3) return "IN_PROGRESS";
+        if (num === 4) return "COMPLETED";
+        return "MOVING";
     };
 
     // ==========================================
-    // 3. LOGIC LẤY DỮ LIỆU (CHỈ CHẠY NẾU F5 TRANG)
+    // 3. ĐỒNG BỘ DỮ LIỆU TỪ BACKEND
     // ==========================================
     useEffect(() => {
-        if (mappedPassedData) return;
-
-        const fetchOrderFallback = async () => {
+        const syncOrderData = async () => {
             try {
                 const API_URL = import.meta.env.VITE_API_BASE_CLEANER_URL;
                 const token = localStorage.getItem("cleaner_token") || sessionStorage.getItem("cleaner_token");
@@ -93,13 +95,9 @@ export const CleanerOrderProgress = () => {
                         time: new Date(data.Service_Date).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }),
                         income: data.Total_Amount,
                     });
-
-                    const dbStatus = String(data.Booking_Status);
-                    if (dbStatus === "2") setWorkStatus("MOVING");
-                    else if (dbStatus === "3") setWorkStatus("IN_PROGRESS");
-                    else if (dbStatus === "4") setWorkStatus("COMPLETED");
+                    setWorkStatus(mapDBStatusToUI(data.Booking_Status));
                 } else {
-                    throw new Error("Lỗi tải đơn hàng cứu hộ. Có thể đơn không tồn tại.");
+                    throw new Error("Không thể đồng bộ dữ liệu đơn hàng.");
                 }
             } catch (err) {
                 setError(err.message);
@@ -108,36 +106,49 @@ export const CleanerOrderProgress = () => {
             }
         };
 
-        if (id) fetchOrderFallback();
-    }, [id, mappedPassedData]);
+        if (id) syncOrderData();
+    }, [id]);
 
     // ==========================================
-    // 4. API CẬP NHẬT TRẠNG THÁI 
+    // 4. API GỌI CHECK-IN VÀ CHECK-OUT (Đã Fix Lỗi Ngáo)
     // ==========================================
-    const updateOrderStatus = async (newStatusValue, targetUIStatus) => {
+    const executeConfirmAction = async () => {
+        setActionError(""); // Reset lỗi cũ trước khi chạy
         setIsUpdating(true);
+        const targetUIStatus = confirmAction === 'start' ? 'IN_PROGRESS' : 'COMPLETED';
+
         try {
-            // Khi BE đã có route cập nhật trạng thái, sếp mở comment đoạn này ra
-            /*
             const API_URL = import.meta.env.VITE_API_BASE_CLEANER_URL;
             const token = localStorage.getItem("cleaner_token") || sessionStorage.getItem("cleaner_token");
-            const response = await fetch(`${API_URL}/update-booking-status/${id}`, {
-                method: "PUT",
-                headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ Booking_Status: newStatusValue })
-            });
-            if (!response.ok) throw new Error("Cập nhật thất bại");
-            */
 
+            const response = await fetch(`${API_URL}/check-in-and-check-out/${id}`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            const result = await response.json();
+
+            // NẾU API BÁO LỖI -> QUĂNG LỖI NGAY LẬP TỨC
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || "Thao tác thất bại từ máy chủ.");
+            }
+
+            // NẾU THÀNH CÔNG: Đóng Modal, đổi status, báo Toast
+            setConfirmAction(null);
+            setActionError("");
             setWorkStatus(targetUIStatus);
+            showToast(result.message, "success");
+
+            // Nếu hoàn thành thì chờ 2s rồi về trang chủ
             if (targetUIStatus === "COMPLETED") {
-                setTimeout(() => {
-                    alert("Tuyệt vời! Đơn hàng đã hoàn thành.");
-                    navigate("/cleaner");
-                }, 1000);
+                setTimeout(() => navigate("/cleaner"), 2000);
             }
         } catch (err) {
-            alert("Lỗi: " + err.message);
+            // NẾU LỖI: Cập nhật biến actionError để hiện chữ đỏ TRONG MODAL, KHÔNG ĐÓNG MODAL
+            setActionError(err.message);
         } finally {
             setIsUpdating(false);
         }
@@ -147,18 +158,6 @@ export const CleanerOrderProgress = () => {
         navigate(`/cleaner/navigate/${id}`, {
             state: { passedOrderData: orderData }
         });
-    };
-
-    const handleStartWork = () => {
-        if (window.confirm("Xác nhận bạn đã đến nơi và bắt đầu dọn dẹp?")) {
-            updateOrderStatus(3, "IN_PROGRESS");
-        }
-    };
-
-    const handleCompleteWork = () => {
-        if (window.confirm("Xác nhận bạn đã hoàn thành công việc?")) {
-            updateOrderStatus(4, "COMPLETED");
-        }
     };
 
     if (isLoading) {
@@ -183,6 +182,16 @@ export const CleanerOrderProgress = () => {
 
     return (
         <div className="min-h-screen bg-[#f4f7f6] flex flex-col font-sans relative overflow-hidden animate-fade-in">
+
+            {/* TOAST NOTIFICATION CHỈ HIỆN KHI THÀNH CÔNG */}
+            {toast.show && (
+                <div className={`fixed top-20 left-1/2 -translate-x-1/2 z-[70] px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 animate-fade-in-down
+                    ${toast.type === 'success' ? 'bg-white border-2 border-green-500 text-green-700' : 'bg-red-50 border-2 border-red-500 text-red-600'}`}>
+                    {toast.type === 'success' ? <CheckCircle2 size={24} className="text-green-500" /> : <ShieldAlert size={24} />}
+                    <p className="font-bold text-sm">{toast.message}</p>
+                </div>
+            )}
+
             <header className="bg-white px-4 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
                 <div className="flex items-center gap-3">
                     <button onClick={() => navigate(-1)} className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition">
@@ -251,23 +260,34 @@ export const CleanerOrderProgress = () => {
                 <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
                     <h3 className="text-sm font-black text-gray-900 uppercase mb-6">Tiến trình công việc</h3>
                     <div className="relative pl-6 space-y-8 before:absolute before:inset-y-2 before:left-[11px] before:w-0.5 before:bg-gray-100">
-                        <div className="relative z-10">
-                            <div className={`absolute -left-[31px] w-6 h-6 rounded-full border-4 border-white flex items-center justify-center ${workStatus !== "MOVING" ? "bg-green-500" : "bg-yellow-400 animate-pulse"}`}>
+                        <div className="relative z-10 flex items-center gap-4">
+                            <div className={`absolute -left-[31px] w-6 h-6 rounded-full border-4 border-white flex items-center justify-center shadow-sm
+                                ${workStatus === "MOVING" ? "bg-yellow-400 animate-pulse" : "bg-green-500"}`}>
                                 {workStatus !== "MOVING" && <CheckCircle2 size={12} className="text-white" />}
                             </div>
-                            <p className={`text-sm font-bold ${workStatus !== "MOVING" ? "text-gray-900" : "text-yellow-600"}`}>Đang di chuyển đến điểm dọn dẹp</p>
+                            <p className={`text-sm font-bold ${workStatus === "MOVING" ? "text-yellow-600" : "text-gray-900"}`}>
+                                Đang di chuyển đến điểm dọn dẹp
+                            </p>
                         </div>
-                        <div className="relative z-10">
-                            <div className={`absolute -left-[31px] w-6 h-6 rounded-full border-4 border-white flex items-center justify-center ${workStatus === "COMPLETED" ? "bg-green-500" : workStatus === "IN_PROGRESS" ? "bg-blue-500 animate-pulse" : "bg-gray-200"}`}>
+
+                        <div className="relative z-10 flex items-center gap-4">
+                            <div className={`absolute -left-[31px] w-6 h-6 rounded-full border-4 border-white flex items-center justify-center shadow-sm
+                                ${workStatus === "MOVING" ? "bg-gray-200" : workStatus === "IN_PROGRESS" ? "bg-blue-500 animate-pulse" : "bg-green-500"}`}>
                                 {workStatus === "COMPLETED" && <CheckCircle2 size={12} className="text-white" />}
                             </div>
-                            <p className={`text-sm font-bold ${workStatus === "IN_PROGRESS" ? "text-blue-600" : workStatus === "COMPLETED" ? "text-gray-900" : "text-gray-400"}`}>Đang tiến hành dọn dẹp</p>
+                            <p className={`text-sm font-bold ${workStatus === "MOVING" ? "text-gray-400" : workStatus === "IN_PROGRESS" ? "text-blue-600" : "text-gray-900"}`}>
+                                Đang tiến hành dọn dẹp
+                            </p>
                         </div>
-                        <div className="relative z-10">
-                            <div className={`absolute -left-[31px] w-6 h-6 rounded-full border-4 border-white flex items-center justify-center ${workStatus === "COMPLETED" ? "bg-green-500" : "bg-gray-200"}`}>
+
+                        <div className="relative z-10 flex items-center gap-4">
+                            <div className={`absolute -left-[31px] w-6 h-6 rounded-full border-4 border-white flex items-center justify-center shadow-sm
+                                ${workStatus === "COMPLETED" ? "bg-green-500" : "bg-gray-200"}`}>
                                 {workStatus === "COMPLETED" && <CheckCircle2 size={12} className="text-white" />}
                             </div>
-                            <p className={`text-sm font-bold ${workStatus === "COMPLETED" ? "text-green-600" : "text-gray-400"}`}>Đã hoàn thành</p>
+                            <p className={`text-sm font-bold ${workStatus === "COMPLETED" ? "text-green-600" : "text-gray-400"}`}>
+                                Đã hoàn thành
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -277,13 +297,19 @@ export const CleanerOrderProgress = () => {
             <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 p-4 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-30">
                 <div className="max-w-md mx-auto">
                     {workStatus === "MOVING" && (
-                        <button onClick={handleStartWork} disabled={isUpdating} className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-200 disabled:opacity-50">
-                            {isUpdating ? "Đang xử lý..." : <><Play size={22} fill="currentColor" /> Bắt đầu dọn dẹp</>}
+                        <button
+                            onClick={() => { setActionError(""); setConfirmAction('start'); }}
+                            className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-200"
+                        >
+                            <Play size={22} fill="currentColor" /> Bắt đầu dọn dẹp
                         </button>
                     )}
                     {workStatus === "IN_PROGRESS" && (
-                        <button onClick={handleCompleteWork} disabled={isUpdating} className="w-full py-4 bg-green-600 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-green-700 active:scale-[0.98] transition-all shadow-lg shadow-green-200 disabled:opacity-50">
-                            {isUpdating ? "Đang xử lý..." : <><CheckCircle2 size={24} /> Hoàn thành công việc</>}
+                        <button
+                            onClick={() => { setActionError(""); setConfirmAction('complete'); }}
+                            className="w-full py-4 bg-green-600 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-green-700 active:scale-[0.98] transition-all shadow-lg shadow-green-200"
+                        >
+                            <CheckCircle2 size={24} /> Hoàn thành công việc
                         </button>
                     )}
                     {workStatus === "COMPLETED" && (
@@ -294,9 +320,60 @@ export const CleanerOrderProgress = () => {
                 </div>
             </div>
 
-            {/* Modal Chat */}
+            {/* MODAL XÁC NHẬN CUSTOM */}
+            {confirmAction && (
+                <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white rounded-[2rem] p-6 sm:p-8 w-full max-w-sm shadow-2xl animate-fade-in-up">
+                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner ${confirmAction === 'start' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
+                            {confirmAction === 'start' ? <Play size={32} fill="currentColor" /> : <CheckCircle2 size={32} strokeWidth={3} />}
+                        </div>
+
+                        <h3 className="text-xl font-black text-gray-900 text-center mb-2">
+                            {confirmAction === 'start' ? "Bắt đầu công việc?" : "Hoàn thành dọn dẹp?"}
+                        </h3>
+                        <p className="text-gray-500 text-center text-sm font-medium mb-6 leading-relaxed">
+                            {confirmAction === 'start'
+                                ? "Xác nhận bạn đã đến nhà khách hàng và chuẩn bị dụng cụ để bắt đầu làm việc."
+                                : "Hãy chắc chắn rằng bạn đã hoàn tất mọi công việc, bàn giao lại cho khách và sẵn sàng kết thúc đơn."}
+                        </p>
+
+                        {/* 🔥 HIỆN LỖI NGAY TẠI MODAL KHÔNG CHO TẮT */}
+                        {actionError && (
+                            <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm font-bold flex items-center gap-2 animate-shake">
+                                <AlertCircle size={18} className="shrink-0" />
+                                {actionError}
+                            </div>
+                        )}
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setConfirmAction(null);
+                                    setActionError("");
+                                }}
+                                disabled={isUpdating}
+                                className="flex-1 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-200 active:scale-95 transition-all disabled:opacity-50"
+                            >
+                                Quay lại
+                            </button>
+                            <button
+                                onClick={executeConfirmAction}
+                                disabled={isUpdating}
+                                className={`flex-1 py-3.5 text-white rounded-xl font-bold text-sm active:scale-95 transition-all shadow-lg disabled:opacity-50
+                                ${confirmAction === 'start' ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-200' : 'bg-green-600 hover:bg-green-700 shadow-green-200'}`}
+                            >
+                                {isUpdating ? (
+                                    <div className="h-5 w-5 mx-auto border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                ) : "Đồng ý"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Chat (Giữ nguyên) */}
             {isChatOpen && (
-                <div className="fixed inset-0 z-50 bg-[#f4f7f6] flex flex-col animate-fade-in-up">
+                <div className="fixed inset-0 z-[50] bg-[#f4f7f6] flex flex-col animate-fade-in-up">
                     <header className="bg-white px-4 py-3 flex items-center justify-between shadow-sm z-20 shrink-0 pb-safe-top">
                         <div className="flex items-center gap-3">
                             <button onClick={() => setIsChatOpen(false)} className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition">

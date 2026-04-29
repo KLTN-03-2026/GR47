@@ -353,17 +353,17 @@ export const HomePage = () => {
                     <div className="text-center mt-10 hover:scale-105 transition-transform cursor-pointer">
                         <div className="mb-4 flex justify-center"><UserCheck className="text-[#008236] w-10 h-10" /></div>
                         <h3 className="font-extrabold text-5xl text-[#008236]">98%</h3>
-                        <h3 className="font-bold text-lg mt-2">Khách hàng hài lòng</h3>
+                        <h3 className="font-bold text-lg mt-2">Khách hàng đánh giá hài lòng</h3>
                     </div>
                     <div className="text-center mt-10 hover:scale-105 transition-transform cursor-pointer">
                         <div className="mb-4 flex justify-center"><SquareCheckBig className="text-[#008236] w-10 h-10" /></div>
                         <h3 className="font-extrabold text-5xl text-[#008236]">10,000+</h3>
-                        <h3 className="font-bold text-lg mt-2">Công việc hoàn thành</h3>
+                        <h3 className="font-bold text-lg mt-2">Công việc đã hoàn thành</h3>
                     </div>
                     <div className="text-center mt-10 hover:scale-105 transition-transform cursor-pointer">
                         <div className="mb-4 flex justify-center"><Clock className="text-[#008236] w-10 h-10" /></div>
                         <h3 className="font-extrabold text-5xl text-[#008236]">15,000+</h3>
-                        <h3 className="font-bold text-lg mt-2">Giờ làm việc</h3>
+                        <h3 className="font-bold text-lg mt-2">Giờ làm việc trên nền tảng</h3>
                     </div>
                 </div>
             </section>

@@ -384,7 +384,6 @@ export const getMyBookings = async (req, res) => {
 
 export const getInProgressBookingsForCleaner = async (req, res) => {
     try {
-        // Lấy ID của thợ từ token đã được CleanerMiddleware bóc tách
         const cleanerId = req.user.id;
 
         const inProgressBookings = await Booking.aggregate([
@@ -392,9 +391,10 @@ export const getInProgressBookingsForCleaner = async (req, res) => {
                 $match: {
                     // 1. Phải là đơn của chính thợ này
                     Cleaner_Id: new mongoose.Types.ObjectId(cleanerId),
-                    // 2. Trạng thái đang thực hiện (Sếp check lại utils xem trạng thái này là "2" hay "3" nhé)
-                    // Nếu thợ có thể có nhiều trạng thái (vd: "Đang đến", "Đang dọn"), sếp dùng: { $in: ["2", "3"] }
-                    Booking_Status: "2"
+
+                    // 2. 🔥 LẤY LUÔN CẢ 2, 3, 4 (Accepted, In Progress, Completed)
+                    // Lưu ý: Nếu DB của sếp lưu kiểu Number thì bỏ dấu ngoặc kép đi nhé
+                    Booking_Status: { $in: ["2", "3", "4"] }
                 }
             },
             {
@@ -408,7 +408,7 @@ export const getInProgressBookingsForCleaner = async (req, res) => {
             },
             { $unwind: { path: "$Client_Data", preserveNullAndEmptyArrays: true } },
             {
-                // Join lấy chi tiết AI (ảnh, độ bẩn...)
+                // Join lấy chi tiết AI (ảnh, độ bẩn...) từ bảng BookingDetail
                 $lookup: {
                     from: "booking_details",
                     localField: "_id",
@@ -418,11 +418,11 @@ export const getInProgressBookingsForCleaner = async (req, res) => {
             },
             { $unwind: { path: "$AI_Details", preserveNullAndEmptyArrays: true } },
             {
-                // Ưu tiên đơn mới nhận / cập nhật gần nhất lên đầu
+                // Sắp xếp: Đơn mới cập nhật (vừa bấm check-in/out) lên đầu
                 $sort: { updatedAt: -1 }
             },
             {
-                // Bóc tách dữ liệu phẳng ra cho Frontend dễ thở
+                // Bóc tách dữ liệu cho đẹp
                 $project: {
                     _id: 1,
                     Total_Amount: 1,
@@ -434,17 +434,9 @@ export const getInProgressBookingsForCleaner = async (req, res) => {
                     createdAt: 1,
                     updatedAt: 1,
                     AI_Details: 1,
-                    // Lôi cổ Tên và SĐT khách ra ngoài y như trang chi tiết
+                    // Lấy thông tin khách hàng ra ngoài
                     Client_Name: { $ifNull: ["$Client_Data.Name", "$Client_Data.Full_Name", "Khách hàng"] },
-                    Client_Phone: {
-                        $ifNull: [
-                            "$Client_Data.Phone",
-                            "$Client_Data.PhoneNumber",
-                            "$Client_Data.phone",
-                            "$Client_Data.SDT",
-                            "Không có SĐT"
-                        ]
-                    },
+                    Client_Phone: { $ifNull: ["$Client_Data.Phone", "$Client_Data.Phone_Number", ""] },
                     Client_Avatar: { $ifNull: ["$Client_Data.Avatar", ""] }
                 }
             }
@@ -452,13 +444,149 @@ export const getInProgressBookingsForCleaner = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            // Trả về số lượng đơn đang làm để App báo badge (vd: có 1 đơn đang chờ xử lý)
             count: inProgressBookings.length,
             data: inProgressBookings
         });
 
     } catch (error) {
-        console.error("❌ Lỗi lấy danh sách đơn đang thực hiện của thợ:", error);
+        console.error("❌ Lỗi lấy danh sách đơn của thợ:", error);
         return res.status(500).json({ success: false, message: "Lỗi server: " + error.message });
+    }
+};
+
+export const checkInAndCheckOut = async (req, res) => {
+    try {
+        const bookingId = req.params.id; // Lấy ID đơn hàng từ URL
+        const cleanerId = req.user.id;   // Lấy ID của thợ từ token
+
+        // 1. Tìm đơn hàng (Bắt buộc phải là đơn do chính ông thợ này nhận)
+        const booking = await Booking.findOne({
+            _id: bookingId,
+            Cleaner_Id: cleanerId
+        });
+
+        if (!booking) {
+            return res.status(404).json({
+                success: false,
+                message: "Không tìm thấy đơn hàng, hoặc đơn này không thuộc về bạn!"
+            });
+        }
+
+        let newStatus;
+        let responseMessage = "";
+
+        // Chuyển đổi trạng thái về kiểu Number cho chắc ăn (phòng trường hợp DB lưu String "2", "3")
+        const currentStatus = Number(booking.Booking_Status);
+
+        // 2. Xử lý logic chuyển trạng thái (State Machine)
+        if (currentStatus === 2) {
+            // Đang ACCEPTED (2) -> Thợ đến nơi bấm Check-in -> Chuyển thành IN_PROGRESS (3)
+            newStatus = 3;
+            responseMessage = "Check-in thành công! Chúc bạn làm việc hiệu quả nhé.";
+
+            // Sếp có thể lưu thêm thời gian bắt đầu làm vào DB nếu model có trường này
+            // booking.Start_Time = new Date(); 
+
+        } else if (currentStatus === 3) {
+            // Đang IN_PROGRESS (3) -> Thợ làm xong bấm Check-out -> Chuyển thành COMPLETED (4)
+            newStatus = 4;
+            responseMessage = "Check-out thành công! Căn phòng đã sạch bong sáng bóng.";
+
+            // Lưu thời gian hoàn thành
+            // booking.End_Time = new Date();
+
+            // Nếu khách chọn thanh toán tiền mặt (ví dụ Payment_Method = 'cash'), sếp có thể cập nhật Payment_Status = 'paid' ở đây luôn
+            // if (booking.Payment_Method === 'cash') booking.Payment_Status = 'paid';
+
+        } else {
+            // Chặn đứng các trường hợp cố tình gọi API sai lúc (Đơn đang chờ, đã hủy, hoặc đã hoàn thành rồi)
+            let statusText = "Không xác định";
+            if (currentStatus === 1) statusText = "Đang chờ nhận";
+            if (currentStatus === 4) statusText = "Đã hoàn thành";
+            if (currentStatus === 5) statusText = "Đã hủy";
+
+            return res.status(400).json({
+                success: false,
+                message: `Thao tác không hợp lệ! Đơn hàng hiện đang ở trạng thái: ${statusText}`
+            });
+        }
+
+        // 3. Cập nhật và lưu vào Database
+        booking.Booking_Status = newStatus;
+        await booking.save();
+
+        // 4. Trả kết quả về cho Frontend cập nhật UI
+        return res.status(200).json({
+            success: true,
+            message: responseMessage,
+            data: {
+                _id: booking._id,
+                Booking_Status: booking.Booking_Status
+            }
+        });
+
+    } catch (error) {
+        console.error("❌ Lỗi Check-in / Check-out:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Lỗi Server: " + error.message
+        });
+    }
+};
+
+export const getBookingDetailForCleaner = async (req, res) => {
+    try {
+        const bookingId = req.params.id; // Lấy ID đơn hàng trên URL
+        const cleanerId = req.user.id;   // Lấy ID của Thợ từ token (Middleware đã cấp)
+
+        // 1. Tìm đơn và "móc" thông tin Khách hàng
+        const bookingDetail = await Booking.findById(bookingId)
+            .populate({
+                path: 'Client_Id',
+                select: '-Password' // Ẩn mật khẩu, lấy tất cả thông tin còn lại (Tên, SĐT, Avatar) để Thợ liên hệ
+            });
+
+        if (!bookingDetail) {
+            return res.status(404).json({
+                success: false,
+                message: "Không tìm thấy đơn hàng này! Có thể khách đã hủy hoặc xóa đơn."
+            });
+        }
+
+        // 2. 🔥 BỨC TƯỜNG BẢO MẬT (Check quyền xem đơn)
+        const currentStatus = Number(bookingDetail.Booking_Status);
+        const isWaiting = currentStatus === 1; // Đơn đang chờ ai đó nhận
+
+        // Kiểm tra xem đơn này có gắn ID của ông thợ đang request không
+        const isMyJob = bookingDetail.Cleaner_Id && String(bookingDetail.Cleaner_Id) === String(cleanerId);
+
+        if (!isWaiting && !isMyJob) {
+            return res.status(403).json({
+                success: false,
+                message: "Cảnh báo: Bạn không có quyền xem chi tiết đơn hàng của thợ khác!"
+            });
+        }
+
+        // 3. Nếu qua được ải bảo mật, trả data về cho Frontend
+        return res.status(200).json({
+            success: true,
+            data: bookingDetail
+        });
+
+    } catch (error) {
+        console.error("❌ Lỗi lấy chi tiết đơn (Cleaner):", error);
+
+        // Vẫn giữ lại cái bẫy bắt lỗi ID tào lao nha sếp
+        if (error.kind === 'ObjectId') {
+            return res.status(400).json({
+                success: false,
+                message: "Định dạng mã đơn hàng không hợp lệ!"
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: "Lỗi Server: " + error.message
+        });
     }
 };
