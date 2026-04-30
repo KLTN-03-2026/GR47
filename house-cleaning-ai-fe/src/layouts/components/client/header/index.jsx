@@ -55,6 +55,24 @@ export const ClientHeader = () => {
         checkAuthStatus();
     }, []);
 
+    // ==========================================================================
+    // LẮNG NGHE SỰ KIỆN CẬP NHẬT PROFILE ĐỂ TỰ ĐỘNG ĐỔI HEADER
+    // ==========================================================================
+    useEffect(() => {
+        const handleProfileUpdate = () => {
+            const storedUser = localStorage.getItem("client_user") || sessionStorage.getItem("client_user");
+            if (storedUser) {
+                setUserData(JSON.parse(storedUser));
+            }
+        };
+
+        window.addEventListener("userProfileUpdated", handleProfileUpdate);
+
+        return () => {
+            window.removeEventListener("userProfileUpdated", handleProfileUpdate);
+        };
+    }, []);
+
     const handleClearAuth = () => {
         localStorage.removeItem("client_token");
         sessionStorage.removeItem("client_token");
@@ -104,12 +122,19 @@ export const ClientHeader = () => {
                         ) : isAuthenticated ? (
                             <div className="flex items-center gap-4">
                                 <Link to="/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                                    <div className="w-9 h-9 bg-green-100 text-green-600 rounded-full flex items-center justify-center font-bold border border-green-200 shadow-sm">
-                                        {/* Đã sửa thành Full_Name */}
-                                        {userData?.Full_Name ? userData.Full_Name.charAt(0).toUpperCase() : <User size={18} />}
+                                    <div className="w-9 h-9 bg-green-100 text-green-600 rounded-full flex items-center justify-center font-bold border border-green-200 shadow-sm overflow-hidden">
+
+                                        {/* LOGIC HIỂN THỊ AVATAR HOẶC CHỮ CÁI ĐẦU TIÊN */}
+                                        {userData?.Avatar ? (
+                                            <img src={userData.Avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                        ) : userData?.Full_Name ? (
+                                            userData.Full_Name.charAt(0).toUpperCase()
+                                        ) : (
+                                            <User size={18} />
+                                        )}
+
                                     </div>
                                     <span className="text-sm font-bold text-gray-700 hidden lg:block">
-                                        {/* Đã sửa thành Full_Name */}
                                         {userData?.Full_Name || "Khách hàng"}
                                     </span>
                                 </Link>
@@ -156,11 +181,18 @@ export const ClientHeader = () => {
                                 {isCheckingAuth ? null : isAuthenticated ? (
                                     <div className="flex items-center justify-between px-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-green-100 text-green-600 rounded-full flex items-center justify-center font-bold">
-                                                {/* Đã sửa thành Full_Name */}
-                                                {userData?.Full_Name ? userData.Full_Name.charAt(0).toUpperCase() : <User size={20} />}
+                                            <div className="w-10 h-10 bg-green-100 text-green-600 rounded-full flex items-center justify-center font-bold overflow-hidden">
+
+                                                {/* LOGIC HIỂN THỊ AVATAR TRÊN MOBILE */}
+                                                {userData?.Avatar ? (
+                                                    <img src={userData.Avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                                ) : userData?.Full_Name ? (
+                                                    userData.Full_Name.charAt(0).toUpperCase()
+                                                ) : (
+                                                    <User size={20} />
+                                                )}
+
                                             </div>
-                                            {/* Đã sửa thành Full_Name */}
                                             <span className="font-bold text-gray-800">{userData?.Full_Name || "Khách hàng"}</span>
                                         </div>
                                         <button onClick={handleLogout} className="p-2 text-red-500 bg-red-50 rounded-lg">

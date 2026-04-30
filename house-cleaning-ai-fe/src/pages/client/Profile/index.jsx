@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Cropper from "react-easy-crop";
 import {
     User, MapPin, Wallet, Lock, Camera,
@@ -7,7 +7,9 @@ import {
     ArrowUpRight, ArrowDownLeft, Calendar, Mail, Phone, Settings, Check, X, ZoomIn, ZoomOut
 } from "lucide-react";
 
-// Helper function để xử lý Canvas cắt ảnh
+// ==========================================================================
+// HELPER CẮT ẢNH
+// ==========================================================================
 const createImage = (url) =>
     new Promise((resolve, reject) => {
         const image = new Image();
@@ -40,9 +42,9 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
     });
 };
 
-/* ==========================================================================
-   COMPONENT: POPUP CẮT & TẢI ẢNH (AVATAR CROPPER)
-   ========================================================================== */
+// ==========================================================================
+// COMPONENT: POPUP CẮT & TẢI ẢNH (AVATAR CROPPER)
+// ==========================================================================
 const AvatarCropperModal = ({ isOpen, onClose, imageSrc, onUploadSuccess, showToast, userData }) => {
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
@@ -145,9 +147,9 @@ const AvatarCropperModal = ({ isOpen, onClose, imageSrc, onUploadSuccess, showTo
     );
 };
 
-/* ==========================================================================
-   MAIN COMPONENT
-   ========================================================================== */
+// ==========================================================================
+// MAIN COMPONENT: CLIENT PROFILE
+// ==========================================================================
 export const ClientProfile = () => {
     const [activeTab, setActiveTab] = useState("PROFILE");
     const [toast, setToast] = useState(null);
@@ -220,7 +222,7 @@ export const ClientProfile = () => {
                     <div className="bg-white/90 backdrop-blur-2xl border border-white/60 rounded-[2rem] shadow-[0_8px_40px_rgb(0,0,0,0.06)] min-h-[600px] flex flex-col relative overflow-hidden">
                         <div className={`absolute inset-0 bg-white z-20 transition-opacity duration-200 pointer-events-none flex items-center justify-center
                             ${isAnimating ? 'opacity-100' : 'opacity-0'}`}>
-                            <div className="w-10 h-10 border-4 border-green-500/20 border-t-green-500 rounded-full animate-spin"></div>
+                                <div className="w-10 h-10 border-4 border-green-500/20 border-t-green-500 rounded-full animate-spin"></div>
                         </div>
 
                         <div className={`flex-grow p-8 sm:p-10 transition-all duration-300 ${isAnimating ? 'scale-[0.98] blur-sm' : 'scale-100 blur-0'}`}>
@@ -235,8 +237,8 @@ export const ClientProfile = () => {
 
             {toast && (
                 <div className={`fixed bottom-8 right-8 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl animate-fade-in-up z-[100] backdrop-blur-md border
-                    ${toast.type === 'success'
-                        ? 'bg-emerald-500/90 text-white border-emerald-400/50 shadow-emerald-500/20'
+                    ${toast.type === 'success' 
+                        ? 'bg-emerald-500/90 text-white border-emerald-400/50 shadow-emerald-500/20' 
                         : 'bg-rose-500/90 text-white border-rose-400/50 shadow-rose-500/20'}`}>
                     <div className="p-1.5 bg-white/20 rounded-full shrink-0">
                         {toast.type === 'success' ? <Check size={16} strokeWidth={3} /> : <X size={16} strokeWidth={3} />}
@@ -248,30 +250,77 @@ export const ClientProfile = () => {
     );
 };
 
+// ==========================================================================
+// TAB: HỒ SƠ CÁ NHÂN (Đã ghép Logic Call API)
+// ==========================================================================
 const ProfileTab = ({ showToast }) => {
     const fileInputRef = useRef(null);
+    
+    const [userData, setUserData] = useState(null);
+    const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
-    const [userData, setUserData] = useState(() => {
-        const stored = localStorage.getItem("client_user") || sessionStorage.getItem("client_user");
-        return stored ? JSON.parse(stored) : null;
-    });
-
-    const [avatar, setAvatar] = useState(userData?.Avatar || "https://i.pravatar.cc/150?u=me");
+    const [avatar, setAvatar] = useState("https://i.pravatar.cc/150?u=me");
     const [isSaving, setIsSaving] = useState(false);
 
-    // States cho Cropper Modal
     const [cropModalOpen, setCropModalOpen] = useState(false);
     const [tempImageSrc, setTempImageSrc] = useState(null);
 
     const [formData, setFormData] = useState({
-        name: userData?.Full_Name || "Nguyễn Văn A",
-        email: userData?.Email || "vana@gmail.com",
-        phone: userData?.Phone_Number || "Chưa cập nhật",
+        name: "",
+        email: "",
+        phone: "",
         gender: "Nam",
-        dob: "1995-05-20"
+        dob: ""
     });
 
-    // Mở file -> Check dung lượng -> Bật Modal cắt ảnh
+    // 1. GỌI API LẤY PROFILE NGAY KHI MỞ TAB
+    useEffect(() => {
+        const fetchMyProfile = async () => {
+            try {
+                const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
+                const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
+                
+                if (!token) throw new Error("Vui lòng đăng nhập lại!");
+
+                const response = await fetch(`${API_URL}/get-my-profile`, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || "Không thể tải hồ sơ");
+                }
+
+                const data = result.data;
+                setUserData(data);
+                
+                setFormData({
+                    name: data.Full_Name || data.Name || "",
+                    email: data.Email || "",
+                    phone: data.Phone_Number || data.Phone || "Chưa cập nhật",
+                    gender: data.Gender || "Nam",
+                    dob: data.Date_Of_Birth ? data.Date_Of_Birth.split('T')[0] : ""
+                });
+
+                if (data.Avatar) setAvatar(data.Avatar);
+
+                const storage = localStorage.getItem("client_token") ? localStorage : sessionStorage;
+                storage.setItem("client_user", JSON.stringify(data));
+
+            } catch (error) {
+                console.error("❌ Lỗi lấy Profile:", error);
+                showToast("error", error.message || "Lỗi kết nối máy chủ");
+            } finally {
+                setIsLoadingProfile(false);
+            }
+        };
+
+        fetchMyProfile();
+    }, []);
+
+    // 2. XỬ LÝ CHỌN VÀ CẮT ẢNH
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -283,19 +332,21 @@ const ProfileTab = ({ showToast }) => {
 
         setTempImageSrc(URL.createObjectURL(file));
         setCropModalOpen(true);
-        e.target.value = null; // Reset input
+        e.target.value = null; 
     };
 
-    // Callback khi Modal upload thành công
     const handleAvatarUploadSuccess = (newAvatarUrl) => {
         setAvatar(newAvatarUrl);
         const updatedUser = { ...userData, Avatar: newAvatarUrl };
-        localStorage.getItem("client_user")
-            ? localStorage.setItem("client_user", JSON.stringify(updatedUser))
-            : sessionStorage.setItem("client_user", JSON.stringify(updatedUser));
+        const storage = localStorage.getItem("client_token") ? localStorage : sessionStorage;
+        storage.setItem("client_user", JSON.stringify(updatedUser));
         setUserData(updatedUser);
+
+        // KÍCH HOẠT SỰ KIỆN CHO THẰNG HEADER CẬP NHẬT NGAY LẬP TỨC
+        window.dispatchEvent(new Event("userProfileUpdated"));
     };
 
+    // 3. GỌI API LƯU THÔNG TIN (TÊN, EMAIL, NGÀY SINH...)
     const handleSave = async () => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!formData.name || !formData.email) {
@@ -308,11 +359,58 @@ const ProfileTab = ({ showToast }) => {
         }
 
         setIsSaving(true);
-        setTimeout(() => {
+        try {
+            const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
+            const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
+
+            // Giả định sếp có viết một cái API tên là update-profile bên Backend
+            const response = await fetch(`${API_URL}/update-profile`, {
+                method: "PUT", // hoặc POST tùy Backend sếp code
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    Full_Name: formData.name,
+                    Email: formData.email,
+                    Gender: formData.gender,
+                    Date_Of_Birth: formData.dob
+                })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || "Cập nhật hồ sơ thất bại");
+            }
+
+            // Update localStorage
+            const updatedUser = { ...userData, ...result.data };
+            const storage = localStorage.getItem("client_token") ? localStorage : sessionStorage;
+            storage.setItem("client_user", JSON.stringify(updatedUser));
+            setUserData(updatedUser);
+
+            // KÍCH HOẠT SỰ KIỆN CHO THẰNG HEADER CẬP NHẬT TÊN NGAY LẬP TỨC
+            window.dispatchEvent(new Event("userProfileUpdated"));
+
             showToast("success", "Đã lưu thông tin hồ sơ thành công!");
+        } catch (error) {
+            console.error("❌ Lỗi Cập nhật Profile:", error);
+            showToast("error", error.message || "Có lỗi xảy ra khi lưu thay đổi");
+        } finally {
             setIsSaving(false);
-        }, 800);
+        }
     };
+
+    // UI LÚC ĐANG GỌI API GET PROFILE
+    if (isLoadingProfile) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px]">
+                <div className="w-12 h-12 border-4 border-green-200 border-t-green-600 rounded-full animate-spin"></div>
+                <p className="text-gray-400 font-bold mt-4 animate-pulse uppercase tracking-widest text-xs">Đang lấy dữ liệu hồ sơ...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-3xl animate-fade-in">
@@ -350,7 +448,7 @@ const ProfileTab = ({ showToast }) => {
                             value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         />
                     </div>
-
+                    
                     <div>
                         <label className="flex items-center gap-2 text-xs font-black text-gray-500 uppercase tracking-wider mb-2 ml-1">
                             <Mail size={14} className="text-green-500" /> Email
@@ -396,8 +494,8 @@ const ProfileTab = ({ showToast }) => {
                                     disabled={isSaving}
                                     onClick={() => setFormData({ ...formData, gender: g })}
                                     className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50
-                                        ${formData.gender === g
-                                            ? 'bg-white text-green-700 shadow-sm border border-gray-100'
+                                        ${formData.gender === g 
+                                            ? 'bg-white text-green-700 shadow-sm border border-gray-100' 
                                             : 'text-gray-500 hover:bg-gray-100/50'}`}
                                 >
                                     {g}
@@ -409,8 +507,8 @@ const ProfileTab = ({ showToast }) => {
             </div>
 
             <div className="mt-12 flex justify-end">
-                <button
-                    onClick={handleSave}
+                <button 
+                    onClick={handleSave} 
                     disabled={isSaving}
                     className="px-8 py-4 bg-gray-900 text-white rounded-2xl font-black text-sm hover:bg-black hover:shadow-lg hover:shadow-gray-900/20 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
@@ -422,7 +520,6 @@ const ProfileTab = ({ showToast }) => {
                 </button>
             </div>
 
-            {/* Gọi Component Cropper Modal ra dùng */}
             <AvatarCropperModal
                 isOpen={cropModalOpen}
                 onClose={() => setCropModalOpen(false)}
@@ -435,6 +532,9 @@ const ProfileTab = ({ showToast }) => {
     );
 };
 
+// ==========================================================================
+// CÁC TAB CÒN LẠI (Sổ địa chỉ, Ví, Bảo mật)
+// ==========================================================================
 const AddressTab = ({ showToast }) => {
     const [addresses, setAddresses] = useState([
         { id: 1, title: "Nhà riêng", detail: "123 Đường ABC, Phường 1, Quận 1, TP.HCM", isDefault: true },
@@ -456,10 +556,10 @@ const AddressTab = ({ showToast }) => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {addresses.map(addr => (
                     <div key={addr.id} className={`relative p-6 rounded-[2rem] border transition-all duration-300 group
-                        ${addr.isDefault
-                            ? 'border-green-300 bg-gradient-to-br from-green-50/50 to-white shadow-[0_8px_30px_rgb(34,197,94,0.06)]'
+                        ${addr.isDefault 
+                            ? 'border-green-300 bg-gradient-to-br from-green-50/50 to-white shadow-[0_8px_30px_rgb(34,197,94,0.06)]' 
                             : 'border-gray-200 bg-white hover:border-green-200 hover:shadow-md'}`}>
-
+                        
                         {addr.isDefault && (
                             <div className="absolute top-0 right-8 transform -translate-y-1/2">
                                 <span className="bg-green-600 text-white px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-md flex items-center gap-1">
@@ -476,7 +576,7 @@ const AddressTab = ({ showToast }) => {
                             <div className="flex-grow">
                                 <h4 className="text-lg font-black text-gray-900 mb-2">{addr.title}</h4>
                                 <p className="text-sm font-medium text-gray-500 leading-relaxed min-h-[40px]">{addr.detail}</p>
-
+                                
                                 <div className="flex gap-3 mt-6 pt-4 border-t border-gray-100/80">
                                     <button className="flex items-center gap-1.5 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold transition-colors">
                                         <Edit2 size={14} /> Sửa
@@ -527,7 +627,7 @@ const WalletTab = () => {
                             <Wallet size={24} className="text-white" />
                         </div>
                     </div>
-
+                    
                     <div className="flex justify-between items-end">
                         <div>
                             <p className="text-[10px] font-bold text-green-100 uppercase tracking-widest opacity-70 mb-1">Chủ tài khoản</p>
@@ -545,7 +645,7 @@ const WalletTab = () => {
                     <h4 className="text-sm font-black text-gray-400 uppercase tracking-[0.15em]">Lịch sử giao dịch</h4>
                     <button className="text-xs font-bold text-green-600 hover:text-green-700">Xem tất cả</button>
                 </div>
-
+                
                 <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-[0_4px_20px_rgb(0,0,0,0.02)]">
                     <div className="divide-y divide-gray-50">
                         {history.map((item) => (
@@ -622,7 +722,7 @@ const SecurityTab = ({ showToast }) => {
                             value={passData.old} onChange={(e) => setPassData({ ...passData, old: e.target.value })}
                         />
                     </div>
-
+                    
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
                         <div>
                             <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2 ml-1">Mật khẩu mới</label>
