@@ -143,10 +143,10 @@ export const ClientHeader = () => {
                 {isMobileMenuOpen && (
                     <div className="md:hidden border-t border-gray-100 bg-white">
                         <div className="px-4 py-4 space-y-2 flex flex-col">
-                            <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 text-gray-600 font-medium hover:bg-green-50 hover:text-green-600 rounded-lg">Trang Chủ</Link>
-                            <Link to="/about" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 text-gray-600 font-medium hover:bg-green-50 hover:text-green-600 rounded-lg">Giới Thiệu</Link>
-                            <Link to="/services" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 text-gray-600 font-medium hover:bg-green-50 hover:text-green-600 rounded-lg">Dịch Vụ</Link>
-                            <Link to="/contact" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 text-gray-600 font-medium hover:bg-green-50 hover:text-green-600 rounded-lg">Liên Hệ</Link>
+                            <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="hover-link-green transition-colors">Trang Chủ</Link>
+                            <Link to="/about" onClick={() => setIsMobileMenuOpen(false)} className="hover-link-green transition-colors">Giới Thiệu</Link>
+                            <Link to="/services" onClick={() => setIsMobileMenuOpen(false)} className="hover-link-green transition-colors">Dịch Vụ</Link>
+                            <Link to="/contact" onClick={() => setIsMobileMenuOpen(false)} className="hover-link-green transition-colors">Liên Hệ</Link>
 
                             {isAuthenticated && (
                                 <Link to="/order-list" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 text-green-600 font-bold bg-green-50 rounded-lg">Đơn Hàng Của Tôi</Link>

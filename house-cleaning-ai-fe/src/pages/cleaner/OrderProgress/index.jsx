@@ -299,7 +299,7 @@ export const CleanerOrderProgress = () => {
                     {workStatus === "MOVING" && (
                         <button
                             onClick={() => { setActionError(""); setConfirmAction('start'); }}
-                            className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-200"
+                            className="btn-primary-blue-lg"
                         >
                             <Play size={22} fill="currentColor" /> Bắt đầu dọn dẹp
                         </button>
@@ -307,7 +307,7 @@ export const CleanerOrderProgress = () => {
                     {workStatus === "IN_PROGRESS" && (
                         <button
                             onClick={() => { setActionError(""); setConfirmAction('complete'); }}
-                            className="w-full py-4 bg-green-600 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-green-700 active:scale-[0.98] transition-all shadow-lg shadow-green-200"
+                            className="btn-primary-green-lg"
                         >
                             <CheckCircle2 size={24} /> Hoàn thành công việc
                         </button>

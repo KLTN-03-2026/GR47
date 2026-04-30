@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { X } from "lucide-react";
 import {
     Settings2, Save, Banknote, Percent,
     AlertCircle, CheckCircle2, ShieldAlert,
@@ -152,7 +153,7 @@ export const AIPriceConfig = () => {
         <div className="space-y-6 animate-fade-in-up">
 
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="card-white card-header">
                 <div>
                     <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
                         <Settings2 size={24} className="text-blue-600" /> Cấu hình Giá AI
@@ -173,7 +174,7 @@ export const AIPriceConfig = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
                 {/* Cột trái: Form cấu hình */}
-                <div className="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="card-white lg:col-span-7 p-6">
                     <h2 className="text-base font-black text-slate-800 mb-6 border-b border-slate-100 pb-4">Tham số Báo giá</h2>
 
                     <form onSubmit={handleSave} className="space-y-6">
@@ -189,7 +190,7 @@ export const AIPriceConfig = () => {
                                 </div>
                                 <input
                                     type="number" name="basePrice"
-                                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none text-sm font-bold text-slate-900 transition-all"
+                                    className="input-admin"
                                     value={config.basePrice} onChange={handleChange}
                                 />
                             </div>
@@ -204,11 +205,11 @@ export const AIPriceConfig = () => {
                                 </label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                                        <Percent size={18} />
+                                        <X size={18} />
                                     </div>
                                     <input
                                         type="number" step="0.1" name="mediumFactor"
-                                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none text-sm font-bold text-slate-900 transition-all"
+                                        className="input-admin"
                                         value={config.mediumFactor} onChange={handleChange}
                                     />
                                 </div>
@@ -221,11 +222,11 @@ export const AIPriceConfig = () => {
                                 </label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                                        <Percent size={18} />
+                                        <X size={18} />
                                     </div>
                                     <input
                                         type="number" step="0.1" name="highFactor"
-                                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none text-sm font-bold text-slate-900 transition-all"
+                                        className="input-admin"
                                         value={config.highFactor} onChange={handleChange}
                                     />
                                 </div>
@@ -237,7 +238,7 @@ export const AIPriceConfig = () => {
                             <button
                                 type="submit"
                                 disabled={status === "loading"}
-                                className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="btn-primary-blue disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {status === "loading" ? (
                                     <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

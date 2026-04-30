@@ -1,234 +1,493 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
+import Cropper from "react-easy-crop";
 import {
     User, MapPin, Wallet, Lock, Camera,
     Plus, Trash2, Edit2, CreditCard,
-    CheckCircle2, AlertCircle, ChevronRight,
-    ArrowUpRight, ArrowDownLeft
+    CheckCircle2, AlertCircle,
+    ArrowUpRight, ArrowDownLeft, Calendar, Mail, Phone, Settings, Check, X, ZoomIn, ZoomOut
 } from "lucide-react";
 
-export const ClientProfile = () => {
-    const [activeTab, setActiveTab] = useState("PROFILE"); // PROFILE, ADDRESS, WALLET, SECURITY
-    const [toast, setToast] = useState(null); // { type: 'success' | 'error', message: '' }
+// Helper function để xử lý Canvas cắt ảnh
+const createImage = (url) =>
+    new Promise((resolve, reject) => {
+        const image = new Image();
+        image.addEventListener("load", () => resolve(image));
+        image.addEventListener("error", (error) => reject(error));
+        image.setAttribute("crossOrigin", "anonymous");
+        image.src = url;
+    });
 
-    // Tabs định nghĩa
+const getCroppedImg = async (imageSrc, pixelCrop) => {
+    const image = await createImage(imageSrc);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    canvas.width = pixelCrop.width;
+    canvas.height = pixelCrop.height;
+
+    ctx.drawImage(
+        image,
+        pixelCrop.x, pixelCrop.y,
+        pixelCrop.width, pixelCrop.height,
+        0, 0,
+        pixelCrop.width, pixelCrop.height
+    );
+
+    return new Promise((resolve) => {
+        canvas.toBlob((blob) => {
+            resolve(blob);
+        }, "image/jpeg");
+    });
+};
+
+/* ==========================================================================
+   COMPONENT: POPUP CẮT & TẢI ẢNH (AVATAR CROPPER)
+   ========================================================================== */
+const AvatarCropperModal = ({ isOpen, onClose, imageSrc, onUploadSuccess, showToast, userData }) => {
+    const [crop, setCrop] = useState({ x: 0, y: 0 });
+    const [zoom, setZoom] = useState(1);
+    const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
+
+    const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+        setCroppedAreaPixels(croppedAreaPixels);
+    }, []);
+
+    const handleCropAndUpload = async () => {
+        try {
+            setIsUploading(true);
+            const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
+            const fileToUpload = new File([croppedBlob], "avatar.jpg", { type: "image/jpeg" });
+
+            const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
+            const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
+            const clientId = userData?._id;
+
+            if (!token || !clientId) throw new Error("Không tìm thấy thông tin xác thực!");
+
+            const uploadData = new FormData();
+            uploadData.append("avatar", fileToUpload);
+
+            const avatarRes = await fetch(`${API_URL}/update-avatar/${clientId}`, {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${token}` },
+                body: uploadData
+            });
+
+            const avatarResult = await avatarRes.json();
+
+            if (!avatarRes.ok || !avatarResult.success) {
+                throw new Error(avatarResult.message || "Lỗi khi tải ảnh lên máy chủ");
+            }
+
+            onUploadSuccess(avatarResult.data.avatar);
+            showToast("success", "Cập nhật ảnh đại diện thành công!");
+            onClose();
+        } catch (error) {
+            console.error("❌ Lỗi Cập Nhật Avatar:", error);
+            showToast("error", error.message || "Có lỗi xảy ra khi đổi ảnh");
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[200] bg-gray-900/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white w-full max-w-md rounded-[2rem] overflow-hidden shadow-2xl animate-fade-in-up">
+                <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <h3 className="font-black text-gray-900 text-lg">Căn chỉnh ảnh đại diện</h3>
+                    <button onClick={onClose} disabled={isUploading} className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-200 rounded-full transition-all disabled:opacity-50">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div className="relative w-full h-[300px] bg-gray-900">
+                    <Cropper
+                        image={imageSrc}
+                        crop={crop}
+                        zoom={zoom}
+                        aspect={1}
+                        cropShape="round"
+                        showGrid={false}
+                        onCropChange={setCrop}
+                        onCropComplete={onCropComplete}
+                        onZoomChange={setZoom}
+                    />
+                </div>
+
+                <div className="p-6">
+                    <div className="flex items-center gap-4 mb-6">
+                        <ZoomOut size={20} className="text-gray-400" />
+                        <input
+                            type="range"
+                            value={zoom}
+                            min={1} max={3} step={0.1}
+                            aria-labelledby="Zoom"
+                            onChange={(e) => setZoom(e.target.value)}
+                            className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                        />
+                        <ZoomIn size={20} className="text-gray-400" />
+                    </div>
+
+                    <div className="flex gap-3">
+                        <button onClick={onClose} disabled={isUploading} className="flex-1 py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all disabled:opacity-50">
+                            Hủy bỏ
+                        </button>
+                        <button onClick={handleCropAndUpload} disabled={isUploading} className="flex-1 py-3.5 bg-green-600 text-white font-bold rounded-xl shadow-lg shadow-green-600/20 hover:bg-green-700 active:scale-95 transition-all flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
+                            {isUploading ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Đang xử lý...</> : "Lưu & Tải lên"}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+/* ==========================================================================
+   MAIN COMPONENT
+   ========================================================================== */
+export const ClientProfile = () => {
+    const [activeTab, setActiveTab] = useState("PROFILE");
+    const [toast, setToast] = useState(null);
+    const [isAnimating, setIsAnimating] = useState(false);
+
     const tabs = [
-        { id: "PROFILE", label: "Hồ sơ cá nhân", icon: <User size={20} /> },
-        { id: "ADDRESS", label: "Số địa chỉ", icon: <MapPin size={20} /> },
-        { id: "WALLET", label: "Ví CleanAI iPay", icon: <Wallet size={20} /> },
-        { id: "SECURITY", label: "Bảo mật", icon: <Lock size={20} /> },
+        { id: "PROFILE", label: "Hồ sơ cá nhân", icon: <User size={18} /> },
+        { id: "ADDRESS", label: "Sổ địa chỉ", icon: <MapPin size={18} /> },
+        { id: "WALLET", label: "Ví CleanAI iPay", icon: <Wallet size={18} /> },
+        { id: "SECURITY", label: "Bảo mật", icon: <Lock size={18} /> },
     ];
 
-    // Hàm hiện Toast thông báo
     const showToast = (type, message) => {
         setToast({ type, message });
         setTimeout(() => setToast(null), 3000);
     };
 
-    return (
-        <div className="min-h-screen bg-[#f4f7f6] py-10 px-4">
-            <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-8">
+    const handleTabChange = (tabId) => {
+        if (tabId === activeTab) return;
+        setIsAnimating(true);
+        setTimeout(() => {
+            setActiveTab(tabId);
+            setIsAnimating(false);
+        }, 200);
+    };
 
-                {/* SIDEBAR TABS - Tận dụng chiều ngang */}
-                <aside className="w-full md:w-64 shrink-0">
-                    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                        <div className="p-6 border-b border-gray-50">
-                            <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Cài đặt tài khoản</p>
+    return (
+        <div className="min-h-screen bg-[#f8faf9] py-12 px-4 font-sans animate-fade-in relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-green-400/5 rounded-full blur-[100px] pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-400/5 rounded-full blur-[100px] pointer-events-none"></div>
+
+            <div className="max-w-[1200px] mx-auto flex flex-col lg:flex-row gap-8 relative z-10">
+                <aside className="w-full lg:w-[280px] shrink-0">
+                    <div className="bg-white/80 backdrop-blur-xl border border-white/40 rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                        <div className="p-7 border-b border-gray-100/50 bg-gradient-to-br from-white to-gray-50/50">
+                            <div className="flex items-center gap-3 mb-1">
+                                <div className="p-2 bg-green-50 text-green-600 rounded-xl">
+                                    <Settings size={20} />
+                                </div>
+                                <h2 className="text-lg font-black text-gray-900 tracking-tight">Cài đặt</h2>
+                            </div>
+                            <p className="text-xs font-bold text-gray-400 ml-[44px]">Quản lý tài khoản của bạn</p>
                         </div>
-                        <nav className="p-2">
-                            {tabs.map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id)}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold transition-all
-                    ${activeTab === tab.id
-                                            ? "bg-green-600 text-white shadow-md shadow-green-100"
-                                            : "text-gray-500 hover:bg-gray-50 hover:text-green-600"}`}
-                                >
-                                    {tab.icon}
-                                    {tab.label}
-                                </button>
-                            ))}
+                        <nav className="p-3 space-y-1">
+                            {tabs.map((tab) => {
+                                const isActive = activeTab === tab.id;
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => handleTabChange(tab.id)}
+                                        className={`w-full flex items-center gap-3.5 px-5 py-3.5 rounded-2xl text-sm font-bold transition-all duration-300 relative overflow-hidden group
+                                            ${isActive
+                                                ? "text-green-700 bg-green-50/80 shadow-sm"
+                                                : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                                            }`}
+                                    >
+                                        {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-r-full shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>}
+                                        <span className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
+                                            {tab.icon}
+                                        </span>
+                                        {tab.label}
+                                    </button>
+                                );
+                            })}
                         </nav>
                     </div>
                 </aside>
 
-                {/* MAIN CONTENT AREA */}
-                <main className="flex-grow bg-white border border-gray-200 rounded-xl shadow-sm min-h-[600px] flex flex-col">
-                    {activeTab === "PROFILE" && <ProfileTab showToast={showToast} />}
-                    {activeTab === "ADDRESS" && <AddressTab showToast={showToast} />}
-                    {activeTab === "WALLET" && <WalletTab showToast={showToast} />}
-                    {activeTab === "SECURITY" && <SecurityTab showToast={showToast} />}
-                </main>
+                <main className="flex-grow">
+                    <div className="bg-white/90 backdrop-blur-2xl border border-white/60 rounded-[2rem] shadow-[0_8px_40px_rgb(0,0,0,0.06)] min-h-[600px] flex flex-col relative overflow-hidden">
+                        <div className={`absolute inset-0 bg-white z-20 transition-opacity duration-200 pointer-events-none flex items-center justify-center
+                            ${isAnimating ? 'opacity-100' : 'opacity-0'}`}>
+                            <div className="w-10 h-10 border-4 border-green-500/20 border-t-green-500 rounded-full animate-spin"></div>
+                        </div>
 
+                        <div className={`flex-grow p-8 sm:p-10 transition-all duration-300 ${isAnimating ? 'scale-[0.98] blur-sm' : 'scale-100 blur-0'}`}>
+                            {activeTab === "PROFILE" && <ProfileTab showToast={showToast} />}
+                            {activeTab === "ADDRESS" && <AddressTab showToast={showToast} />}
+                            {activeTab === "WALLET" && <WalletTab showToast={showToast} />}
+                            {activeTab === "SECURITY" && <SecurityTab showToast={showToast} />}
+                        </div>
+                    </div>
+                </main>
             </div>
 
-            {/* TOAST NOTIFICATION */}
             {toast && (
-                <div className={`fixed bottom-10 right-10 flex items-center gap-2 px-6 py-4 rounded-xl shadow-2xl border animate-fade-in-up z-[100]
-          ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
-                    {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-                    <span className="font-bold text-sm">{toast.message}</span>
+                <div className={`fixed bottom-8 right-8 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl animate-fade-in-up z-[100] backdrop-blur-md border
+                    ${toast.type === 'success'
+                        ? 'bg-emerald-500/90 text-white border-emerald-400/50 shadow-emerald-500/20'
+                        : 'bg-rose-500/90 text-white border-rose-400/50 shadow-rose-500/20'}`}>
+                    <div className="p-1.5 bg-white/20 rounded-full shrink-0">
+                        {toast.type === 'success' ? <Check size={16} strokeWidth={3} /> : <X size={16} strokeWidth={3} />}
+                    </div>
+                    <span className="font-bold text-sm tracking-wide">{toast.message}</span>
                 </div>
             )}
         </div>
     );
 };
 
-/* ==========================================================================
-   I. TAB HỒ SƠ CÁ NHÂN
-   ========================================================================== */
 const ProfileTab = ({ showToast }) => {
     const fileInputRef = useRef(null);
-    const [avatar, setAvatar] = useState("https://i.pravatar.cc/150?u=me");
+
+    const [userData, setUserData] = useState(() => {
+        const stored = localStorage.getItem("client_user") || sessionStorage.getItem("client_user");
+        return stored ? JSON.parse(stored) : null;
+    });
+
+    const [avatar, setAvatar] = useState(userData?.Avatar || "https://i.pravatar.cc/150?u=me");
+    const [isSaving, setIsSaving] = useState(false);
+
+    // States cho Cropper Modal
+    const [cropModalOpen, setCropModalOpen] = useState(false);
+    const [tempImageSrc, setTempImageSrc] = useState(null);
+
     const [formData, setFormData] = useState({
-        name: "Nguyễn Văn A",
-        email: "vana@gmail.com",
-        phone: "0987654321",
+        name: userData?.Full_Name || "Nguyễn Văn A",
+        email: userData?.Email || "vana@gmail.com",
+        phone: userData?.Phone_Number || "Chưa cập nhật",
         gender: "Nam",
         dob: "1995-05-20"
     });
 
-    const handleAvatarChange = (e) => {
+    // Mở file -> Check dung lượng -> Bật Modal cắt ảnh
+    const handleFileSelect = (e) => {
         const file = e.target.files[0];
-        if (file && file.size > 1024 * 1024) {
-            alert("Ảnh quá lớn (Max 1MB)");
+        if (!file) return;
+
+        if (file.size > 2 * 1024 * 1024) {
+            showToast("error", "Ảnh quá lớn. Vui lòng chọn ảnh dưới 2MB");
             return;
         }
-        if (file) setAvatar(URL.createObjectURL(file));
+
+        setTempImageSrc(URL.createObjectURL(file));
+        setCropModalOpen(true);
+        e.target.value = null; // Reset input
     };
 
-    const handleSave = () => {
-        // Validate email (Mục Hoạt động)
+    // Callback khi Modal upload thành công
+    const handleAvatarUploadSuccess = (newAvatarUrl) => {
+        setAvatar(newAvatarUrl);
+        const updatedUser = { ...userData, Avatar: newAvatarUrl };
+        localStorage.getItem("client_user")
+            ? localStorage.setItem("client_user", JSON.stringify(updatedUser))
+            : sessionStorage.setItem("client_user", JSON.stringify(updatedUser));
+        setUserData(updatedUser);
+    };
+
+    const handleSave = async () => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!formData.name || !formData.email) {
-            showToast("error", "Lỗi: Bỏ trống trường bắt buộc");
+            showToast("error", "Vui lòng không bỏ trống Họ tên và Email");
             return;
         }
         if (!emailRegex.test(formData.email)) {
-            showToast("error", "Email sai định dạng");
+            showToast("error", "Email không đúng định dạng hợp lệ");
             return;
         }
-        showToast("success", "Cập nhật thành công");
+
+        setIsSaving(true);
+        setTimeout(() => {
+            showToast("success", "Đã lưu thông tin hồ sơ thành công!");
+            setIsSaving(false);
+        }, 800);
     };
 
     return (
-        <div className="p-8">
-            <h2 className="text-xl font-bold text-gray-800 mb-8">Hồ sơ của tôi</h2>
+        <div className="max-w-3xl animate-fade-in">
+            <h2 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">Hồ sơ cá nhân</h2>
+            <p className="text-gray-500 font-medium text-sm mb-10">Quản lý thông tin cá nhân và cách thức liên lạc của bạn.</p>
 
-            {/* 1. Avatar Upload */}
-            <div className="flex flex-col items-center mb-10 group">
-                <div className="relative">
-                    <img src={avatar} className="w-28 h-28 rounded-full object-cover border-4 border-gray-50 shadow-sm" alt="Avatar" />
-                    <button
-                        onClick={() => fileInputRef.current.click()}
-                        className="absolute bottom-0 right-0 p-2 bg-green-600 text-white rounded-full border-2 border-white hover:bg-green-700 transition-all shadow-md"
-                    >
-                        <Camera size={16} />
-                    </button>
-                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleAvatarChange} />
+            <div className="flex flex-col sm:flex-row gap-10 sm:gap-16">
+                <div className="flex flex-col items-center shrink-0">
+                    <div className="relative group cursor-pointer" onClick={() => fileInputRef.current.click()}>
+                        <div className="absolute inset-0 bg-gradient-to-tr from-green-400 to-blue-400 rounded-full blur-[6px] opacity-40 group-hover:opacity-70 transition-opacity duration-500"></div>
+                        <div className="w-32 h-32 rounded-full p-1 bg-gradient-to-tr from-green-400 to-blue-400 relative z-10">
+                            <img src={avatar} className="w-full h-full rounded-full object-cover border-4 border-white bg-white" alt="Avatar" />
+                            <div className="absolute inset-1 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <Camera className="text-white" size={24} />
+                            </div>
+                        </div>
+                        <div className="absolute bottom-1 right-1 p-2.5 bg-gray-900 text-white rounded-full border-[3px] border-white shadow-lg z-20 group-hover:scale-110 transition-transform">
+                            <Camera size={14} />
+                        </div>
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/jpeg, image/png" onChange={handleFileSelect} />
+                    </div>
+                    <p className="text-[10px] font-black text-gray-400 mt-5 uppercase tracking-[0.2em] bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
+                        Đổi ảnh đại diện
+                    </p>
                 </div>
-                <p className="text-[10px] font-bold text-gray-400 mt-3 uppercase tracking-widest">JPG/PNG (Max 1MB)</p>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* 2. Họ tên */}
-                <div>
-                    <label className="block text-xs font-black text-gray-400 uppercase mb-2 ml-1">Họ và Tên</label>
-                    <input
-                        className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-1 focus:ring-green-500 outline-none text-sm font-medium"
-                        value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    />
-                </div>
-                {/* 2. Email */}
-                <div>
-                    <label className="block text-xs font-black text-gray-400 uppercase mb-2 ml-1">Email</label>
-                    <input
-                        className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-1 focus:ring-green-500 outline-none text-sm font-medium"
-                        value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    />
-                </div>
-                {/* 3. Số điện thoại (Disable) */}
-                <div>
-                    <label className="block text-xs font-black text-gray-400 uppercase mb-2 ml-1">Số điện thoại</label>
-                    <div className="flex gap-2">
+                <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-7">
+                    <div className="md:col-span-2">
+                        <label className="flex items-center gap-2 text-xs font-black text-gray-500 uppercase tracking-wider mb-2 ml-1">
+                            <User size={14} className="text-green-500" /> Họ và Tên
+                        </label>
                         <input
-                            disabled
-                            className="w-full px-4 py-3 rounded-lg border border-gray-100 bg-gray-50 text-gray-400 text-sm font-medium"
-                            value={formData.phone}
+                            disabled={isSaving}
+                            className="w-full px-5 py-3.5 bg-gray-50/50 border border-gray-200 rounded-2xl text-gray-900 font-bold focus:bg-white focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all disabled:opacity-50"
+                            value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         />
-                        <button className="px-4 py-2 border border-green-600 text-green-600 rounded-lg text-xs font-bold hover:bg-green-50">Thay đổi</button>
                     </div>
-                </div>
-                {/* 5. Ngày sinh */}
-                <div>
-                    <label className="block text-xs font-black text-gray-400 uppercase mb-2 ml-1">Ngày sinh</label>
-                    <input
-                        type="date"
-                        className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-1 focus:ring-green-500 outline-none text-sm font-medium"
-                        value={formData.dob} onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                    />
-                </div>
-                {/* 4. Giới tính */}
-                <div className="md:col-span-2">
-                    <label className="block text-xs font-black text-gray-400 uppercase mb-2 ml-1">Giới tính</label>
-                    <div className="flex gap-6 mt-3">
-                        {["Nam", "Nữ", "Khác"].map(g => (
-                            <label key={g} className="flex items-center gap-2 cursor-pointer text-sm font-bold text-gray-600">
-                                <input
-                                    type="radio" name="gender" checked={formData.gender === g}
-                                    className="w-4 h-4 text-green-600 border-gray-300 focus:ring-green-500"
-                                    onChange={() => setFormData({ ...formData, gender: g })}
-                                /> {g}
-                            </label>
-                        ))}
+
+                    <div>
+                        <label className="flex items-center gap-2 text-xs font-black text-gray-500 uppercase tracking-wider mb-2 ml-1">
+                            <Mail size={14} className="text-green-500" /> Email
+                        </label>
+                        <input
+                            disabled={isSaving}
+                            className="w-full px-5 py-3.5 bg-gray-50/50 border border-gray-200 rounded-2xl text-gray-900 font-bold focus:bg-white focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all disabled:opacity-50"
+                            value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        />
+                    </div>
+
+                    <div>
+                        <label className="flex items-center gap-2 text-xs font-black text-gray-500 uppercase tracking-wider mb-2 ml-1">
+                            <Phone size={14} className="text-green-500" /> Số điện thoại
+                        </label>
+                        <div className="relative">
+                            <input
+                                disabled
+                                className="w-full px-5 py-3.5 bg-gray-100/80 border border-gray-200/80 rounded-2xl text-gray-500 font-bold cursor-not-allowed"
+                                value={formData.phone}
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="flex items-center gap-2 text-xs font-black text-gray-500 uppercase tracking-wider mb-2 ml-1">
+                            <Calendar size={14} className="text-green-500" /> Ngày sinh
+                        </label>
+                        <input
+                            type="date"
+                            disabled={isSaving}
+                            className="w-full px-5 py-3.5 bg-gray-50/50 border border-gray-200 rounded-2xl text-gray-900 font-bold focus:bg-white focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all disabled:opacity-50"
+                            value={formData.dob} onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-3 ml-1">Giới tính</label>
+                        <div className="flex gap-3 bg-gray-50/50 p-1.5 rounded-2xl border border-gray-200">
+                            {["Nam", "Nữ", "Khác"].map(g => (
+                                <button
+                                    key={g}
+                                    disabled={isSaving}
+                                    onClick={() => setFormData({ ...formData, gender: g })}
+                                    className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50
+                                        ${formData.gender === g
+                                            ? 'bg-white text-green-700 shadow-sm border border-gray-100'
+                                            : 'text-gray-500 hover:bg-gray-100/50'}`}
+                                >
+                                    {g}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <button onClick={handleSave} className="mt-10 px-10 py-3 bg-green-600 text-white rounded-lg font-bold shadow-sm hover:bg-green-700 transition-all">
-                Lưu thay đổi
-            </button>
+            <div className="mt-12 flex justify-end">
+                <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="px-8 py-4 bg-gray-900 text-white rounded-2xl font-black text-sm hover:bg-black hover:shadow-lg hover:shadow-gray-900/20 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                    {isSaving ? (
+                        <>ĐANG LƯU... <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div></>
+                    ) : (
+                        <>LƯU THAY ĐỔI <CheckCircle2 size={18} /></>
+                    )}
+                </button>
+            </div>
+
+            {/* Gọi Component Cropper Modal ra dùng */}
+            <AvatarCropperModal
+                isOpen={cropModalOpen}
+                onClose={() => setCropModalOpen(false)}
+                imageSrc={tempImageSrc}
+                onUploadSuccess={handleAvatarUploadSuccess}
+                showToast={showToast}
+                userData={userData}
+            />
         </div>
     );
 };
 
-/* ==========================================================================
-   II. TAB SỔ ĐỊA CHỈ
-   ========================================================================== */
 const AddressTab = ({ showToast }) => {
     const [addresses, setAddresses] = useState([
-        { id: 1, title: "Nhà riêng", detail: "123 Đường ABC, Quận 1, TP.HCM", isDefault: true },
-        { id: 2, title: "Công ty", detail: "456 Tòa nhà XYZ, Quận 7, TP.HCM", isDefault: false },
+        { id: 1, title: "Nhà riêng", detail: "123 Đường ABC, Phường 1, Quận 1, TP.HCM", isDefault: true },
+        { id: 2, title: "Công ty", detail: "Tầng 4, Tòa nhà XYZ, 456 Đường DEF, Quận 7, TP.HCM", isDefault: false },
     ]);
 
     return (
-        <div className="p-8">
-            <div className="flex justify-between items-center mb-8">
-                <h2 className="text-xl font-bold text-gray-800">Sổ địa chỉ</h2>
-                <button className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg text-xs font-bold hover:bg-black transition-all">
-                    <Plus size={16} /> Thêm địa chỉ mới
+        <div className="max-w-4xl animate-fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
+                <div>
+                    <h2 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">Sổ địa chỉ</h2>
+                    <p className="text-gray-500 font-medium text-sm">Quản lý các địa chỉ dọn dẹp thường xuyên của bạn.</p>
+                </div>
+                <button className="flex items-center justify-center gap-2 px-6 py-3.5 bg-green-50 text-green-700 border border-green-200 rounded-2xl text-sm font-black hover:bg-green-100 transition-all active:scale-95 shadow-sm">
+                    <Plus size={18} /> THÊM ĐỊA CHỈ MỚI
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {addresses.map(addr => (
-                    <div key={addr.id} className={`p-5 rounded-xl border flex justify-between items-start transition-all
-            ${addr.isDefault ? 'border-green-200 bg-green-50/30' : 'border-gray-100 bg-white hover:border-gray-300'}`}>
+                    <div key={addr.id} className={`relative p-6 rounded-[2rem] border transition-all duration-300 group
+                        ${addr.isDefault
+                            ? 'border-green-300 bg-gradient-to-br from-green-50/50 to-white shadow-[0_8px_30px_rgb(34,197,94,0.06)]'
+                            : 'border-gray-200 bg-white hover:border-green-200 hover:shadow-md'}`}>
+
+                        {addr.isDefault && (
+                            <div className="absolute top-0 right-8 transform -translate-y-1/2">
+                                <span className="bg-green-600 text-white px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-md flex items-center gap-1">
+                                    <CheckCircle2 size={12} /> Mặc định
+                                </span>
+                            </div>
+                        )}
+
                         <div className="flex gap-4">
-                            <div className={`p-3 rounded-lg ${addr.isDefault ? 'bg-green-600 text-white' : 'bg-gray-50 text-gray-400'}`}>
-                                <MapPin size={20} />
+                            <div className={`shrink-0 w-12 h-12 flex items-center justify-center rounded-2xl mt-1
+                                ${addr.isDefault ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500 group-hover:bg-green-50 group-hover:text-green-500 transition-colors'}`}>
+                                <MapPin size={24} />
                             </div>
-                            <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <h4 className="font-bold text-gray-900">{addr.title}</h4>
-                                    {addr.isDefault && <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-black uppercase rounded">Mặc định</span>}
+                            <div className="flex-grow">
+                                <h4 className="text-lg font-black text-gray-900 mb-2">{addr.title}</h4>
+                                <p className="text-sm font-medium text-gray-500 leading-relaxed min-h-[40px]">{addr.detail}</p>
+
+                                <div className="flex gap-3 mt-6 pt-4 border-t border-gray-100/80">
+                                    <button className="flex items-center gap-1.5 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold transition-colors">
+                                        <Edit2 size={14} /> Sửa
+                                    </button>
+                                    {!addr.isDefault && (
+                                        <button className="flex items-center gap-1.5 px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-bold transition-colors">
+                                            <Trash2 size={14} /> Xóa
+                                        </button>
+                                    )}
                                 </div>
-                                <p className="text-sm text-gray-500">{addr.detail}</p>
                             </div>
-                        </div>
-                        <div className="flex gap-2">
-                            <button className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all"><Edit2 size={16} /></button>
-                            <button className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={16} /></button>
                         </div>
                     </div>
                 ))}
@@ -237,126 +496,158 @@ const AddressTab = ({ showToast }) => {
     );
 };
 
-/* ==========================================================================
-   III. TAB VÍ CLEANAI IPAY
-   ========================================================================== */
 const WalletTab = () => {
     const history = [
-        { id: 1, type: "IN", desc: "Nạp tiền qua VNPAY", amount: 500000, date: "20/03/2026 14:30" },
-        { id: 2, type: "OUT", desc: "Thanh toán đơn dọn dẹp #BK001", amount: -450000, date: "18/03/2026 09:00" },
+        { id: 1, type: "IN", desc: "Nạp tiền qua thẻ tín dụng VNPAY", amount: 1500000, date: "20/03/2026", time: "14:30" },
+        { id: 2, type: "OUT", desc: "Thanh toán đơn dọn nhà #BK8821", amount: -450000, date: "18/03/2026", time: "09:00" },
+        { id: 3, type: "IN", desc: "Hoàn tiền đơn hủy #BK8810", amount: 200000, date: "15/03/2026", time: "16:45" },
     ];
 
     return (
-        <div className="p-8">
-            <h2 className="text-xl font-bold text-gray-800 mb-8 font-sans">Ví điện tử CleanAI iPay</h2>
+        <div className="max-w-4xl animate-fade-in">
+            <h2 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">Ví CleanAI iPay</h2>
+            <p className="text-gray-500 font-medium text-sm mb-10">Thanh toán dịch vụ nhanh chóng, không cần tiền mặt.</p>
 
-            {/* 10. Số dư khả dụng */}
-            <div className="bg-gradient-to-br from-green-600 to-green-800 rounded-2xl p-8 text-white shadow-xl shadow-green-900/10 mb-10">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <p className="text-xs font-bold text-green-100 uppercase tracking-[0.2em] mb-2">Số dư hiện tại</p>
-                        <h3 className="text-4xl font-black">50.000 <span className="text-lg font-medium">VNĐ</span></h3>
+            <div className="relative w-full max-w-[420px] h-[240px] rounded-[2.5rem] p-8 text-white overflow-hidden shadow-[0_20px_50px_rgba(21,128,61,0.25)] mb-12 transform hover:-translate-y-2 transition-transform duration-500">
+                <div className="absolute inset-0 bg-gradient-to-br from-green-600 via-emerald-600 to-teal-800"></div>
+                <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
+                <div className="absolute -bottom-24 -left-24 w-64 h-64 border-[40px] border-white/10 rounded-full"></div>
+                <div className="absolute -top-12 -right-12 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+
+                <div className="relative z-10 h-full flex flex-col justify-between">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-[10px] font-black text-green-100 uppercase tracking-[0.3em] mb-1 opacity-80">Số dư khả dụng</p>
+                            <div className="flex items-baseline gap-2">
+                                <h3 className="text-[2.5rem] font-black tracking-tight">1.250.000</h3>
+                                <span className="text-lg font-bold opacity-80">VNĐ</span>
+                            </div>
+                        </div>
+                        <div className="bg-white/20 backdrop-blur-md p-3 rounded-2xl border border-white/20">
+                            <Wallet size={24} className="text-white" />
+                        </div>
                     </div>
-                    <div className="p-3 bg-white/10 rounded-xl backdrop-blur-md">
-                        <CreditCard size={32} />
+
+                    <div className="flex justify-between items-end">
+                        <div>
+                            <p className="text-[10px] font-bold text-green-100 uppercase tracking-widest opacity-70 mb-1">Chủ tài khoản</p>
+                            <p className="font-bold tracking-widest text-lg">NGUYỄN VĂN A</p>
+                        </div>
+                        <button className="px-6 py-2.5 bg-white text-green-800 rounded-xl font-black text-xs hover:bg-green-50 hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center gap-2">
+                            <Plus size={16} /> NẠP TIỀN
+                        </button>
                     </div>
                 </div>
-                {/* 11. Nút nạp tiền */}
-                <button className="mt-8 px-8 py-3 bg-white text-green-700 rounded-xl font-bold text-sm shadow-lg hover:bg-green-50 transition-all flex items-center gap-2">
-                    <Plus size={18} /> Nạp thêm tiền
-                </button>
             </div>
 
-            {/* 12. Lịch sử giao dịch */}
             <div>
-                <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">Lịch sử giao dịch</h4>
-                <div className="border border-gray-100 rounded-xl overflow-hidden shadow-sm bg-white">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                <th className="px-6 py-4">Mô tả</th>
-                                <th className="px-6 py-4">Thời gian</th>
-                                <th className="px-6 py-4 text-right">Biến động</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {history.map(item => (
-                                <tr key={item.id} className="text-sm">
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`p-2 rounded-lg ${item.type === 'IN' ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
-                                                {item.type === 'IN' ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
-                                            </div>
-                                            <span className="font-bold text-gray-700">{item.desc}</span>
+                <div className="flex items-center justify-between mb-6">
+                    <h4 className="text-sm font-black text-gray-400 uppercase tracking-[0.15em]">Lịch sử giao dịch</h4>
+                    <button className="text-xs font-bold text-green-600 hover:text-green-700">Xem tất cả</button>
+                </div>
+
+                <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-[0_4px_20px_rgb(0,0,0,0.02)]">
+                    <div className="divide-y divide-gray-50">
+                        {history.map((item) => (
+                            <div key={item.id} className="p-5 sm:p-6 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
+                                <div className="flex items-center gap-4 sm:gap-5">
+                                    <div className={`shrink-0 w-12 h-12 flex items-center justify-center rounded-2xl
+                                        ${item.type === 'IN' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                                        {item.type === 'IN' ? <ArrowDownLeft size={20} strokeWidth={2.5} /> : <ArrowUpRight size={20} strokeWidth={2.5} />}
+                                    </div>
+                                    <div>
+                                        <h5 className="font-bold text-gray-900 text-sm sm:text-base mb-1">{item.desc}</h5>
+                                        <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
+                                            <span>{item.date}</span>
+                                            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                            <span>{item.time}</span>
                                         </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-gray-400 font-medium">{item.date}</td>
-                                    <td className={`px-6 py-4 text-right font-black ${item.type === 'IN' ? 'text-green-600' : 'text-red-600'}`}>
-                                        {item.amount > 0 ? '+' : ''}{item.amount.toLocaleString()}đ
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                                    </div>
+                                </div>
+                                <div className={`font-black text-base sm:text-lg shrink-0
+                                    ${item.type === 'IN' ? 'text-emerald-600' : 'text-gray-900'}`}>
+                                    {item.type === 'IN' ? '+' : ''}{item.amount.toLocaleString()}đ
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
         </div>
     );
 };
 
-/* ==========================================================================
-   IV. TAB BẢO MẬT
-   ========================================================================== */
 const SecurityTab = ({ showToast }) => {
     const [passData, setPassData] = useState({ old: "", new: "", confirm: "" });
 
     const handleUpdate = () => {
+        if (!passData.old || !passData.new || !passData.confirm) {
+            showToast("error", "Vui lòng điền đầy đủ các trường mật khẩu");
+            return;
+        }
         if (passData.new !== passData.confirm) {
-            showToast("error", "Mật khẩu mới không khớp nhau");
+            showToast("error", "Mật khẩu mới và xác nhận không khớp");
             return;
         }
         if (passData.new.length < 6) {
-            showToast("error", "Mật khẩu phải có tối thiểu 6 ký tự");
+            showToast("error", "Mật khẩu mới phải có ít nhất 6 ký tự");
             return;
         }
-        showToast("success", "Cập nhật mật khẩu thành công. Vui lòng đăng nhập lại.");
+        showToast("success", "Đã đổi mật khẩu an toàn. Vui lòng đăng nhập lại!");
+        setPassData({ old: "", new: "", confirm: "" });
     };
 
     return (
-        <div className="p-8 max-w-md">
-            <h2 className="text-xl font-bold text-gray-800 mb-8">Thay đổi mật khẩu</h2>
-            <div className="space-y-6">
-                {/* 13. Mật khẩu hiện tại */}
-                <div>
-                    <label className="block text-xs font-black text-gray-400 uppercase mb-2 ml-1">Mật khẩu hiện tại</label>
-                    <input
-                        type="password" placeholder="••••••••"
-                        className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-1 focus:ring-green-500 outline-none text-sm"
-                        value={passData.old} onChange={(e) => setPassData({ ...passData, old: e.target.value })}
-                    />
+        <div className="max-w-xl animate-fade-in">
+            <h2 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">Bảo mật tài khoản</h2>
+            <p className="text-gray-500 font-medium text-sm mb-10">Quản lý mật khẩu và bảo vệ tài khoản của bạn khỏi truy cập trái phép.</p>
+
+            <div className="bg-gray-50/50 border border-gray-200 rounded-[2rem] p-8">
+                <div className="flex items-center gap-3 mb-8 pb-6 border-b border-gray-200/60">
+                    <div className="p-3 bg-white text-gray-700 rounded-xl shadow-sm border border-gray-100">
+                        <Lock size={20} />
+                    </div>
+                    <div>
+                        <h3 className="font-black text-gray-900 text-lg">Đổi mật khẩu</h3>
+                        <p className="text-xs font-bold text-gray-500">Bạn nên đổi mật khẩu 3 tháng/lần</p>
+                    </div>
                 </div>
-                {/* 14. Mật khẩu mới */}
-                <div>
-                    <label className="block text-xs font-black text-gray-400 uppercase mb-2 ml-1">Mật khẩu mới</label>
-                    <input
-                        type="password" placeholder="Tối thiểu 6 ký tự, có chữ và số"
-                        className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-1 focus:ring-green-500 outline-none text-sm"
-                        value={passData.new} onChange={(e) => setPassData({ ...passData, new: e.target.value })}
-                    />
+
+                <div className="space-y-6">
+                    <div>
+                        <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2 ml-1">Mật khẩu hiện tại</label>
+                        <input
+                            type="password" placeholder="Nhập mật khẩu đang dùng"
+                            className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl text-gray-900 font-bold focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 outline-none transition-all placeholder:font-medium placeholder:text-gray-400"
+                            value={passData.old} onChange={(e) => setPassData({ ...passData, old: e.target.value })}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
+                        <div>
+                            <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2 ml-1">Mật khẩu mới</label>
+                            <input
+                                type="password" placeholder="Tối thiểu 6 ký tự"
+                                className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl text-gray-900 font-bold focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 outline-none transition-all placeholder:font-medium placeholder:text-gray-400"
+                                value={passData.new} onChange={(e) => setPassData({ ...passData, new: e.target.value })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2 ml-1">Xác nhận mật khẩu</label>
+                            <input
+                                type="password" placeholder="Nhập lại mật khẩu mới"
+                                className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl text-gray-900 font-bold focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 outline-none transition-all placeholder:font-medium placeholder:text-gray-400"
+                                value={passData.confirm} onChange={(e) => setPassData({ ...passData, confirm: e.target.value })}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="pt-8 flex justify-end">
+                        <button onClick={handleUpdate} className="px-8 py-4 bg-gray-900 text-white rounded-2xl font-black text-sm hover:bg-black hover:shadow-lg hover:shadow-gray-900/20 active:scale-95 transition-all">
+                            CẬP NHẬT MẬT KHẨU
+                        </button>
+                    </div>
                 </div>
-                {/* 15. Xác nhận mật khẩu mới */}
-                <div>
-                    <label className="block text-xs font-black text-gray-400 uppercase mb-2 ml-1">Xác nhận mật khẩu mới</label>
-                    <input
-                        type="password" placeholder="Nhập lại mật khẩu mới"
-                        className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-1 focus:ring-green-500 outline-none text-sm"
-                        value={passData.confirm} onChange={(e) => setPassData({ ...passData, confirm: e.target.value })}
-                    />
-                </div>
-                {/* 16. Button cập nhật */}
-                <button onClick={handleUpdate} className="w-full px-10 py-3 bg-gray-900 text-white rounded-lg font-bold shadow-sm hover:bg-black transition-all">
-                    Cập nhật mật khẩu
-                </button>
             </div>
         </div>
     );

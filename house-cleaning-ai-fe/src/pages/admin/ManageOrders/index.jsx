@@ -45,13 +45,13 @@ export const ManageOrders = () => {
     const renderStatusBadge = (status) => {
         switch (status) {
             case "PENDING":
-                return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-orange-100 text-orange-700 text-[10px] font-black uppercase tracking-widest rounded-full"><Clock size={12} /> Chờ nhận</span>;
+                return <span className="badge-status-orange"><Clock size={12} /> Chờ nhận</span>;
             case "IN_PROGRESS":
-                return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-100 text-blue-700 text-[10px] font-black uppercase tracking-widest rounded-full"><PlayCircle size={12} /> Đang dọn</span>;
+                return <span className="badge-status-blue"><PlayCircle size={12} /> Đang dọn</span>;
             case "COMPLETED":
-                return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-widest rounded-full"><CheckCircle2 size={12} /> Hoàn thành</span>;
+                return <span className="badge-status-emerald"><CheckCircle2 size={12} /> Hoàn thành</span>;
             case "CANCELLED":
-                return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-100 text-red-700 text-[10px] font-black uppercase tracking-widest rounded-full"><XCircle size={12} /> Đã hủy</span>;
+                return <span className="badge-status-red"><XCircle size={12} /> Đã hủy</span>;
             default:
                 return null;
         }
@@ -61,7 +61,7 @@ export const ManageOrders = () => {
         <div className="space-y-6 animate-fade-in-up">
 
             {/* Header & Tìm kiếm */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="card-white card-header">
                 <div>
                     <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
                         <ClipboardList size={24} className="text-blue-600" /> Giám sát Đơn hàng
@@ -89,7 +89,7 @@ export const ManageOrders = () => {
 
             {/* Thông báo lỗi quyền truy cập */}
             {notification.message && (
-                <div className="p-4 rounded-xl flex items-center gap-3 text-sm font-bold shadow-sm border bg-red-50 border-red-200 text-red-600 animate-shake">
+                <div className="alert-error">
                     <ShieldAlert size={20} className="shrink-0" />
                     {notification.message}
                 </div>

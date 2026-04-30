@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   Info,
   Image as ImageIcon,
+  Sparkles,
 } from "lucide-react";
 
 export const ClientAIQuoteResult = () => {
@@ -22,10 +23,9 @@ export const ClientAIQuoteResult = () => {
   const rawAiData = location.state?.aiData;
 
   useEffect(() => {
-    // Khởi tạo thư viện AOS
     AOS.init({
       duration: 800,
-      once: true, // Chỉ chạy hiệu ứng 1 lần khi cuộn tới
+      once: true,
       easing: "ease-out-cubic",
     });
 
@@ -50,13 +50,13 @@ export const ClientAIQuoteResult = () => {
     return Math.max(2, Math.round(baseHours * 10) / 10);
   };
 
-  // Gói gém TOÀN BỘ dữ liệu để xài cho UI và mang sang trang Đặt lịch
   const aiData = {
     area: rawAiData?.details?.area || 0,
     messiness: mapMessiness(rawAiData?.details?.clutter_status),
+    description: rawAiData?.details?.description || "Không có dữ liệu phân tích chi tiết.",
     estimatedHours: calcEstimatedHours(),
     totalPrice: rawAiData?.final_price_vnd || 0,
-    imageUrl: rawAiData?.image_url || null, // <--- LẤY ẢNH TỪ JSON ĐÂY SẾP!
+    imageUrl: rawAiData?.image_url || null,
     rawDetails: rawAiData?.details,
   };
 
@@ -118,7 +118,7 @@ export const ClientAIQuoteResult = () => {
                 tách
               </h2>
 
-              {/* HÌNH ẢNH AI BÓC TÁCH (SHOW RA NẾU JSON CÓ) */}
+              {/* HÌNH ẢNH AI BÓC TÁCH */}
               {aiData.imageUrl && (
                 <div
                   className="mb-6 group relative overflow-hidden rounded-2xl border border-gray-100 shadow-sm"
@@ -177,20 +177,21 @@ export const ClientAIQuoteResult = () => {
                 </div>
               </div>
 
+              {/* 🔥 ĐÃ FIX: NỐI CHUỖI VIẾT LIỀN LUN THÀNH MỘT MẠCH VĂN */}
               <div
-                className="mt-8 rounded-2xl bg-green-50/50 p-6 border border-green-100"
+                className="mt-8 rounded-2xl bg-green-50/50 p-6 border border-green-200 relative overflow-hidden"
                 data-aos="fade-up"
                 data-aos-delay="300"
               >
-                <h3 className="text-sm font-bold text-green-800 mb-2 uppercase tracking-wider">
-                  Phân tích hệ thống:
+                {/* Decor mờ mờ */}
+                <Sparkles size={120} className="absolute -top-10 -right-10 text-green-100 opacity-50" />
+
+                <h3 className="text-sm font-black text-green-800 mb-3 uppercase tracking-wider flex items-center gap-2 relative z-10">
+                  <Sparkles size={18} className="animate-pulse" />
+                  AI Nhận diện không gian:
                 </h3>
-                <p className="text-sm text-green-700 leading-relaxed italic">
-                  "Dựa trên hình ảnh, AI nhận diện không gian với diện tích ước
-                  tính {aiData.area}m² và mức độ bừa bộn{" "}
-                  {aiData.messiness.toLowerCase()}. Chi phí đã được tính toán
-                  dựa trên thuật toán nhận diện vật dụng thực tế để đảm bảo chất
-                  lượng dọn dẹp chuyên sâu."
+                <p className="text-base text-gray-800 leading-relaxed font-medium italic relative z-10">
+                  "{aiData.description} Dựa trên mức độ bừa bộn và diện tích đo đạc thực tế là {aiData.area}m², hệ thống ước tính chi phí dọn dẹp trọn gói cho không gian này sẽ rơi vào khoảng {(aiData.totalPrice || 0).toLocaleString("vi-VN")} VNĐ."
                 </p>
               </div>
             </div>
@@ -230,7 +231,7 @@ export const ClientAIQuoteResult = () => {
                   </div>
                 </div>
 
-                {/* Nút Tiếp tục mang theo Toàn bộ Data sang trang Booking */}
+                {/* Nút Tiếp tục */}
                 <button
                   onClick={() =>
                     navigate("/booking-info", { state: { aiData: aiData } })

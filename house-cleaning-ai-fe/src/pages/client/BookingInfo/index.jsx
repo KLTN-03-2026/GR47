@@ -108,7 +108,7 @@ export const ClientBookingInfo = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* FORM INPUT */}
           <div className="lg:col-span-8 space-y-6" data-aos="fade-right">
-            <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-10">
+            <div className="card-white-large space-y-10">
               <section data-aos="fade-up" data-aos-delay="100">
                 <h3 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
                   <Calendar className="text-green-600" size={20} /> 1. Thời gian
@@ -244,7 +244,7 @@ export const ClientBookingInfo = () => {
               {/* Nút này giờ chỉ chuyển trang chứ chưa gọi API */}
               <button
                 onClick={handleProceedToPayment}
-                className="w-full bg-green-600 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-green-200 hover:bg-green-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                className="btn-primary-green-full"
               >
                 Tiếp tục thanh toán{" "}
                 <ChevronLeft className="rotate-180" size={24} />

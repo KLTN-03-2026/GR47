@@ -290,9 +290,7 @@ export const Contact = () => {
                     value={formData.name}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 text-gray-900
-                      focus:bg-white focus:border-green-500 focus:ring-4 focus:ring-green-100
-                      hover:border-gray-300 outline-none transition-all duration-200 text-sm"
+                    className="input-form"
                   />
                 </div>
                 <div>
@@ -310,9 +308,7 @@ export const Contact = () => {
                     value={formData.phone}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 text-gray-900
-                      focus:bg-white focus:border-green-500 focus:ring-4 focus:ring-green-100
-                      hover:border-gray-300 outline-none transition-all duration-200 text-sm"
+                    className="input-form"
                   />
                 </div>
               </div>
@@ -332,9 +328,7 @@ export const Contact = () => {
                   placeholder="example@gmail.com"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 text-gray-900
-                    focus:bg-white focus:border-green-500 focus:ring-4 focus:ring-green-100
-                    hover:border-gray-300 outline-none transition-all duration-200 text-sm"
+                  className="input-form"
                 />
               </div>
 
@@ -352,9 +346,7 @@ export const Contact = () => {
                   value={formData.subject}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 text-gray-900
-                    focus:bg-white focus:border-green-500 focus:ring-4 focus:ring-green-100
-                    hover:border-gray-300 outline-none transition-all duration-200 text-sm appearance-none cursor-pointer"
+                  className="input-form appearance-none cursor-pointer"
                 >
                   <option value="" disabled>
                     -- Chọn chủ đề --
@@ -384,9 +376,7 @@ export const Contact = () => {
                   value={formData.message}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 text-gray-900
-                    focus:bg-white focus:border-green-500 focus:ring-4 focus:ring-green-100
-                    hover:border-gray-300 outline-none transition-all duration-200 text-sm resize-none"
+                  className="input-form resize-none"
                 />
               </div>
 
@@ -394,12 +384,7 @@ export const Contact = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5
-                  bg-green-600 text-white font-semibold py-3.5 px-8 rounded-xl
-                  hover:bg-green-700 hover:-translate-y-0.5 active:translate-y-0
-                  transition-all duration-200 shadow-lg shadow-green-200
-                  focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500
-                  disabled:opacity-70 disabled:cursor-not-allowed"
+                className="btn-primary-green-lg sm:w-auto focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   <>

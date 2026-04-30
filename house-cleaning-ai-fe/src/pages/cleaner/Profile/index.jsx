@@ -169,7 +169,7 @@ export const CleanerProfile = () => {
                         <button
                             type="submit"
                             disabled={status === "loading"}
-                            className="w-full mt-4 py-4 bg-green-600 text-white rounded-2xl font-black text-lg hover:bg-green-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-900/10"
+                            className="btn-primary-green-lg"
                         >
                             {status === "loading" ? (
                                 <div className="h-6 w-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />

@@ -115,11 +115,11 @@ export const ClientServicePage = () => {
                             Không còn nỗi lo mặc cả hay chờ đợi khảo sát. CleanAI mang đến trải nghiệm làm sạch không gian sống minh bạch, nhanh chóng và đạt chuẩn 5 sao.
                         </p>
                         <div data-aos="fade-up" data-aos-delay="300" className="flex flex-wrap items-center justify-center gap-4">
-                            <button onClick={() => navigate("/")} className="bg-green-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-green-700 transition-all shadow-lg shadow-green-600/30 flex items-center gap-2">
+                            <button onClick={() => navigate("/")} className="btn-primary-green">
                                 Khám phá dịch vụ <ArrowRight size={20} />
                             </button>
                             {/* Nút đăng ký đã được gắn route sang trang Liên hệ */}
-                            <button onClick={() => navigate("/contact")} className="bg-white text-gray-700 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-50 transition-all border border-gray-200 shadow-sm flex items-center gap-2">
+                            <button onClick={() => navigate("/contact")} className="btn-secondary-white">
                                 <Users size={20} className="text-green-600" /> Đăng ký làm thợ
                             </button>
                         </div>

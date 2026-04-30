@@ -74,7 +74,7 @@ export const FinancePromotions = () => {
         <div className="space-y-6 animate-fade-in-up">
 
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="card-white card-header">
                 <div>
                     <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
                         <Ticket size={24} className="text-blue-600" /> Tài chính & Khuyến mãi
@@ -142,7 +142,7 @@ export const FinancePromotions = () => {
 
                         <button
                             type="submit"
-                            className="w-full mt-2 py-3 bg-blue-600 text-white rounded-xl font-black text-sm hover:bg-blue-700 active:scale-[0.98] transition-all shadow-md shadow-blue-600/20"
+                            className="btn-primary-blue mt-2"
                         >
                             Tạo và Phát hành Voucher
                         </button>

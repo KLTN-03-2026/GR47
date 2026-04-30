@@ -49,7 +49,7 @@ export const CleanerTaskList = () => {
     const renderStatusBadge = (status) => {
         if (status === "2") {
             return (
-                <div className="flex items-center gap-1 bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-xl border border-yellow-200">
+                <div className="badge-yellow">
                     <Navigation size={14} className="animate-pulse" />
                     <span className="text-[10px] font-black uppercase tracking-wider">Đang di chuyển</span>
                 </div>
@@ -57,7 +57,7 @@ export const CleanerTaskList = () => {
         }
         if (status === "3") {
             return (
-                <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-3 py-1.5 rounded-xl border border-blue-200">
+                <div className="badge-blue">
                     <Play size={14} className="animate-pulse" fill="currentColor" />
                     <span className="text-[10px] font-black uppercase tracking-wider">Đang thi công</span>
                 </div>
@@ -65,14 +65,14 @@ export const CleanerTaskList = () => {
         }
         if (status === "4") {
             return (
-                <div className="flex items-center gap-1 bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-xl border border-emerald-200">
+                <div className="badge-emerald">
                     <CheckCircle2 size={14} />
                     <span className="text-[10px] font-black uppercase tracking-wider">Hoàn thành</span>
                 </div>
             );
         }
         return (
-            <div className="flex items-center gap-1 bg-gray-100 text-gray-600 px-3 py-1.5 rounded-xl border border-gray-200">
+            <div className="badge-status-gray">
                 <AlertCircle size={14} />
                 <span className="text-[10px] font-black uppercase tracking-wider">Chưa rõ</span>
             </div>
@@ -183,7 +183,7 @@ export const CleanerTaskList = () => {
                             {activeTab === "ALL" && (
                                 <button
                                     onClick={() => navigate('/cleaner/home')}
-                                    className="px-8 py-4 bg-green-600 text-white font-bold rounded-xl shadow-lg shadow-green-900/20 active:scale-95 transition-all"
+                                    className="btn-primary-green"
                                 >
                                     Quét Radar Tìm Việc Mới
                                 </button>
@@ -194,7 +194,7 @@ export const CleanerTaskList = () => {
                             <div
                                 key={task._id}
                                 onClick={() => handleGoToProgress(task)}
-                                className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:border-green-300 hover:-translate-y-2 transition-all duration-300 group relative overflow-hidden cursor-pointer flex flex-col h-full animate-fade-in-up"
+                                className="card-interactive animate-fade-in-up"
                                 style={{ animationDelay: `${index * 100}ms` }}
                             >
                                 <div className={`absolute top-0 left-0 w-1.5 h-full ${getCardLineColor(String(task.Booking_Status))} transition-all duration-300 group-hover:w-2`}></div>
