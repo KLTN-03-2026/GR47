@@ -24,5 +24,6 @@ clientRouter.get('/my-bookings', ClientMiddleware.protect, BookingController.get
 
 clientRouter.post('/analyze-room-image', ClientMiddleware.protect, upload.single('room_image'), AIController.analyzeRoomImage);
 
-
+clientRouter.get('/get-my-profile', ClientMiddleware.protect, ClientController.getMyProfile);
+clientRouter.post('/update-avatar/:id', ClientMiddleware.protect, upload.single('avatar'), ClientController.updateAvatar);
 export default clientRouter;

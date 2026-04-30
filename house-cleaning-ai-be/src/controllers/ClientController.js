@@ -2,7 +2,14 @@
 import Client from '../models/ClientModel.js';
 import jwt from 'jsonwebtoken';
 import { CLIENTSTATUS } from '../utils/statusUtils.js';
+import { v2 as cloudinary } from 'cloudinary';
 
+// Khởi tạo cấu hình Cloudinary ngay đầu file
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 export const login = async (req, res) => {
     try {
@@ -203,6 +210,109 @@ export const checkAuth = async (req, res) => {
             success: false,
             message: 'Lỗi máy chủ',
             error: error.message
+        });
+    }
+};
+
+export const updateAvatar = async (req, res) => {
+    try {
+        const urlId = req.params.id;
+
+        const tokenId = req.user.id;
+        if (urlId !== String(tokenId)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Cảnh báo bảo mật: Bạn không được phép đổi ảnh của người khác!'
+            });
+        }
+
+        const file = req.file;
+        if (!file) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vui lòng chọn một ảnh để tải lên!'
+            });
+        }
+
+        // 👤 BƯỚC 3: KIỂM TRA DB
+        const client = await Client.findById(urlId);
+        if (!client) {
+            return res.status(404).json({ success: false, message: 'Khách hàng không tồn tại' });
+        }
+
+        console.log("☁️ Đang tải Avatar lên Cloudinary...");
+        const uploadStreamToCloudinary = (buffer) => {
+            return new Promise((resolve, reject) => {
+                const stream = cloudinary.uploader.upload_stream(
+                    { folder: "cleanai_avatars" },
+                    (error, result) => {
+                        if (error) reject(error);
+                        else resolve(result);
+                    }
+                );
+                stream.end(buffer);
+            });
+        };
+
+        const cloudinaryResult = await uploadStreamToCloudinary(file.buffer);
+        const secureImageUrl = cloudinaryResult.secure_url;
+
+        client.Avatar = secureImageUrl;
+        await client.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Cập nhật ảnh đại diện thành công!',
+            data: {
+                _id: client._id,
+                Full_Name: client.Full_Name, // Đã khớp với Model
+                Email: client.Email,         // Đã khớp với Model
+                Avatar: client.Avatar        // Đã khớp với Model
+            }
+        });
+
+    } catch (error) {
+        console.error("❌ Lỗi Update Avatar Controller:", error);
+        return res.status(500).json({
+            success: false,
+            message: 'Lỗi hệ thống khi cập nhật ảnh đại diện'
+        });
+    }
+};
+
+export const getMyProfile = async (req, res) => {
+    try {
+        const tokenId = req.user.id; 
+
+        if (!tokenId) {
+            return res.status(401).json({
+                success: false,
+                message: 'Không có quyền truy cập. Token không hợp lệ!'
+            });
+        }
+
+        const profile = await Client.findById(tokenId).select('-Password -__v');
+
+        if (!profile) {
+            return res.status(404).json({
+                success: false,
+                message: 'Khách hàng không tồn tại'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: profile
+        });
+
+    } catch (error) {
+        console.error("❌ Lỗi Get My Profile Controller:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: 'Lỗi hệ thống khi lấy thông tin cá nhân',
+            loi_that_su_la_gi: error.message, 
+            dong_loi: error.stack
         });
     }
 };
