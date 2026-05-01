@@ -10,12 +10,10 @@ export const AdminDashboard = () => {
     const [status, setStatus] = useState("loading"); // loading | success | error
     const [dashboardData, setDashboardData] = useState(null);
 
-    // Giả lập Dữ liệu
     const fetchDashboardData = (filter) => {
         setStatus("loading");
 
         setTimeout(() => {
-            // Giả lập Thất bại: Lỗi truy vấn
             if (filter === "month") {
                 setStatus("error");
                 return;

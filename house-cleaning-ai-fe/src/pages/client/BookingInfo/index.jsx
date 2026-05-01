@@ -244,10 +244,9 @@ export const ClientBookingInfo = () => {
               {/* Nút này giờ chỉ chuyển trang chứ chưa gọi API */}
               <button
                 onClick={handleProceedToPayment}
-                className="btn-primary-green-full"
+                className="w-full mt-6 bg-green-600 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-green-200 hover:bg-green-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
               >
-                Tiếp tục thanh toán{" "}
-                <ChevronLeft className="rotate-180" size={24} />
+                Tiếp tục thanh toán <ChevronLeft className="rotate-180" size={24} />
               </button>
             </div>
           </div>

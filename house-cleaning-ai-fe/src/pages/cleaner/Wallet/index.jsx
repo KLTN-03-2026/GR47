@@ -10,7 +10,6 @@ export const CleanerWallet = () => {
     const [status, setStatus] = useState("loading"); // loading | success | error
     const [walletData, setWalletData] = useState(null);
 
-    // Giả lập API Fetch Data
     const fetchWalletData = (simulateError = false) => {
         setStatus("loading");
 
@@ -18,7 +17,6 @@ export const CleanerWallet = () => {
             if (simulateError) {
                 setStatus("error");
             } else {
-                // Dữ liệu giả lập thành công
                 setWalletData({
                     balance: 1250000,
                     transactions: [

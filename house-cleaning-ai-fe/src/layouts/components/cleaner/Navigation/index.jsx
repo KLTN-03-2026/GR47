@@ -10,7 +10,6 @@ export const CleanerNavigation = () => {
     const orderData = location.state?.passedOrderData;
     const [arrived, setArrived] = useState(false);
 
-    // THÊM STATE NÀY ĐỂ FIX LỖI
     const [mapRef, setMapRef] = useState(null);
 
     const { isLoaded } = useJsApiLoader({
@@ -30,7 +29,7 @@ export const CleanerNavigation = () => {
         bounds.extend(customerPos);
         bounds.extend(cleanerPos);
         map.fitBounds(bounds);
-        setMapRef(map); // Đánh dấu là map đã load xong
+        setMapRef(map);
     };
 
     if (!isLoaded) return <div className="h-screen flex items-center justify-center">Đang tải...</div>;
@@ -43,7 +42,7 @@ export const CleanerNavigation = () => {
                     mapContainerStyle={{ width: '100%', height: '100%' }}
                     center={cleanerPos}
                     zoom={15}
-                    onLoad={handleOnLoad} // Gọi hàm handleOnLoad mới
+                    onLoad={handleOnLoad}
                     options={{
                         disableDefaultUI: true,
                     }}

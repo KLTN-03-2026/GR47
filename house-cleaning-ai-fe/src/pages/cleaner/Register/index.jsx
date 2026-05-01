@@ -10,7 +10,6 @@ export const CleanerRegister = () => {
     const navigate = useNavigate();
     const [formData, setFormData] = useState({ name: "", phone: "", password: "" });
 
-    // State quản lý file và preview
     const [images, setImages] = useState({ cccd: null, selfie: null });
     const [previews, setPreviews] = useState({ cccd: "", selfie: "" });
 
@@ -20,7 +19,6 @@ export const CleanerRegister = () => {
     const cccdRef = useRef(null);
     const selfieRef = useRef(null);
 
-    // Xử lý upload ảnh và Validate 5MB
     const handleImageChange = (e, type) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -66,7 +64,6 @@ export const CleanerRegister = () => {
         }, 1500);
     };
 
-    // Giao diện Thành công (Chờ duyệt)
     if (status === "success") {
         return (
             <div className="min-h-screen bg-[#f4f7f5] flex items-center justify-center p-4 font-sans">

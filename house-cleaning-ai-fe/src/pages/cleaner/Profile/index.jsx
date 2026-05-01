@@ -9,7 +9,6 @@ import {
 export const CleanerProfile = () => {
     const navigate = useNavigate();
 
-    // Dữ liệu giả lập ban đầu
     const [profileData, setProfileData] = useState({
         name: "Lê Minh Tuấn",
         phone: "0901234567",
@@ -32,12 +31,10 @@ export const CleanerProfile = () => {
         setTimeout(() => setPhoneError(false), 3000);
     };
 
-    // Hoạt động: Lưu cập nhật (Mục 3)
     const handleSave = (e) => {
         e.preventDefault();
         setStatus("loading");
 
-        // Giả lập API lưu dữ liệu (Thành công: Cập nhật DB)
         setTimeout(() => {
             setStatus("success");
             setTimeout(() => setStatus("idle"), 3000); // Ẩn thông báo sau 3s

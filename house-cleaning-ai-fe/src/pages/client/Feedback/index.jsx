@@ -15,18 +15,15 @@ export const ClientFeedback = () => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        // Logic Hoạt động: Kiểm tra chưa chọn sao (Thất bại)
         if (rating === 0) {
             setError("Vui lòng chọn số sao để đánh giá");
             return;
         }
 
-        // Giả lập lưu DB thành công
         console.log("Lưu đánh giá:", { orderId: id, rating, comment });
         setSubmitted(true);
         setError("");
 
-        // Tự động quay lại trang danh sách sau 2 giây
         setTimeout(() => {
             navigate("/my-orders");
         }, 2000);

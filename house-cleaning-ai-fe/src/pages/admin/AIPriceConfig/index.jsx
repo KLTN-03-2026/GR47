@@ -7,20 +7,16 @@ import {
 } from "lucide-react";
 
 export const AIPriceConfig = () => {
-    // Trạng thái các input
     const [config, setConfig] = useState({
         basePrice: 0,
         mediumFactor: 0,
         highFactor: 0
     });
 
-    const [status, setStatus] = useState("idle"); // idle | loading | success | error
+    const [status, setStatus] = useState("idle");
     const [notification, setNotification] = useState({ type: "", message: "" });
     const [isFetching, setIsFetching] = useState(true);
 
-    // ==========================================
-    // 1. LẤY CẤU HÌNH HIỆN TẠI TỪ SERVER
-    // ==========================================
     useEffect(() => {
         const fetchCurrentConfig = async () => {
             try {
@@ -44,7 +40,6 @@ export const AIPriceConfig = () => {
                         highFactor: result.data.High_Factor
                     });
                 } else if (response.status === 404) {
-                    // Nếu chưa có cấu hình nào trong DB, set mặc định để Admin nhập
                     setConfig({ basePrice: 15000, mediumFactor: 1.2, highFactor: 1.5 });
                 } else {
                     showToast("error", result.message || "Không thể tải cấu hình AI.");
@@ -60,21 +55,16 @@ export const AIPriceConfig = () => {
         fetchCurrentConfig();
     }, []);
 
-    // Xử lý thay đổi input
     const handleChange = (e) => {
         const { name, value } = e.target;
         setConfig({ ...config, [name]: value });
     };
 
-    // Hiển thị thông báo Toast
     const showToast = (type, message) => {
         setNotification({ type, message });
         setTimeout(() => setNotification({ type: "", message: "" }), 4000);
     };
 
-    // ==========================================
-    // 2. LƯU CẤU HÌNH MỚI LÊN SERVER
-    // ==========================================
     const handleSave = async (e) => {
         e.preventDefault();
         setStatus("loading");
@@ -83,7 +73,6 @@ export const AIPriceConfig = () => {
         const med = Number(config.mediumFactor);
         const high = Number(config.highFactor);
 
-        // Validate cơ bản
         if (!base || !med || !high) {
             showToast("error", "Vui lòng nhập đầy đủ các tham số cấu hình.");
             setStatus("error");
@@ -133,8 +122,6 @@ export const AIPriceConfig = () => {
             setStatus("error");
         }
     };
-
-    // Tính toán Live Preview dựa trên 50m2
     const previewArea = 1;
     const safeBase = Number(config.basePrice) || 0;
     const safeMed = Number(config.mediumFactor) || 0;

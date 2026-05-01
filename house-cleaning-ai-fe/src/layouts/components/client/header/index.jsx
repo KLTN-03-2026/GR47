@@ -55,9 +55,6 @@ export const ClientHeader = () => {
         checkAuthStatus();
     }, []);
 
-    // ==========================================================================
-    // LẮNG NGHE SỰ KIỆN CẬP NHẬT PROFILE ĐỂ TỰ ĐỘNG ĐỔI HEADER
-    // ==========================================================================
     useEffect(() => {
         const handleProfileUpdate = () => {
             const storedUser = localStorage.getItem("client_user") || sessionStorage.getItem("client_user");

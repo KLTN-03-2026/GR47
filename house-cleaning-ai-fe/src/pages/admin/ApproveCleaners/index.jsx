@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 
 export const ApproveCleaners = () => {
-    // Dữ liệu giả lập danh sách chờ duyệt (Mục 1)
+
     const [pendingList, setPendingList] = useState([
         {
             id: "C-9901",
@@ -35,13 +35,13 @@ export const ApproveCleaners = () => {
     const [notification, setNotification] = useState({ type: "", message: "" });
     const [isProcessing, setIsProcessing] = useState(false);
 
-    // Hiển thị thông báo
+
     const showToast = (type, message) => {
         setNotification({ type, message });
         setTimeout(() => setNotification({ type: "", message: "" }), 3000);
     };
 
-    // Hoạt động: Phê duyệt -> Thành công (ACTIVE)
+
     const handleApprove = (id) => {
         setIsProcessing(true);
         setTimeout(() => {
@@ -52,7 +52,7 @@ export const ApproveCleaners = () => {
         }, 1000);
     };
 
-    // Hoạt động: Từ chối -> Thất bại (Upload lại)
+
     const handleReject = (id) => {
         if (!window.confirm("Bạn có chắc chắn muốn từ chối hồ sơ này và yêu cầu Cleaner upload lại?")) return;
 

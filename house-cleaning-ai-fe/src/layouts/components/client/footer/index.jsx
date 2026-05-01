@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { FaFacebook, FaTwitter, FaInstagram, FaGithub } from "react-icons/fa";
-import logo from "../../../../assets/img/logo.png"; // Đảm bảo đường dẫn đúng đến logo của bạn
+import logo from "../../../../assets/img/logo.png";
 
 export const ClientFooter = () => {
     return (
