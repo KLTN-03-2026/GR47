@@ -11,7 +11,6 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Hàm Upload Ảnh
 const uploadToCloudinary = (buffer) => {
     return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
@@ -22,46 +21,30 @@ const uploadToCloudinary = (buffer) => {
     });
 };
 
-// LUỒNG XỬ LÝ CHÍNH
 export const analyzeRoomWorkflow = async (fileBuffer, mimeType) => {
     const currentConfig = await AIConfig.findOne({ Is_Active: true }) || {
         Base_Price: 20000, Medium_Factor: 1.2, High_Factor: 1.5
     };
 
-    // 1. Tải ảnh lên Cloudinary
-    console.log("☁️ Đang tải ảnh lên Cloudinary...");
     const cloudinaryResult = await uploadToCloudinary(fileBuffer);
     const secureImageUrl = cloudinaryResult.secure_url;
 
-    // 2. Chuẩn bị ảnh cho AI
     const base64String = fileBuffer.toString("base64");
     const imagePart = { inlineData: { data: base64String, mimeType: mimeType } };
 
-    // ==========================================
-    // 🔥 CHIẾN THUẬT 2 NHỊP AI (TWO-PASS AI)
-    // ==========================================
-
-    // NHỊP 1: Hỏi nhanh lấy mồi (RAG context)
-    console.log("🕵️‍♂️ Nhịp 1: Đang hỏi AI xem đây là phòng gì...");
     const modelNhip1 = genAI.getGenerativeModel({ model: "gemini-2.5-flash", systemInstruction: ROOM_IDENTIFICATION_PROMPT });
     const result1 = await modelNhip1.generateContent(["Đây là loại phòng gì?", imagePart]);
     const roomTypeHint = result1.response.text().trim().toLowerCase();
-    console.log(`✅ AI đoán đây là phòng: "${roomTypeHint}"`);
 
-    // NHỊP 2: Chạy RAG và đánh giá sâu
-    console.log("🚀 Nhịp 2: Đang mớm mồi RAG và phân tích độ bẩn...");
     const modelNhip2 = genAI.getGenerativeModel({
         model: "gemini-2.5-flash",
-        systemInstruction: getFullAssessmentPrompt(roomTypeHint), // Bơm mồi vào đây
+        systemInstruction: getFullAssessmentPrompt(roomTypeHint),
         generationConfig: { responseMimeType: "application/json" }
     });
     const prompt2 = "Hãy phân tích căn phòng trong bức ảnh này và trả về kết quả JSON.";
     const result2 = await modelNhip2.generateContent([prompt2, imagePart]);
     const aiData = JSON.parse(result2.response.text());
 
-    // ==========================================
-
-    // 3. Tính tiền
     const area = Number(aiData.area) || 20;
     const clutter_level = aiData.clutter_level || 'low';
     const description = aiData.description || 'Không có mô tả chi tiết.';
@@ -72,7 +55,6 @@ export const analyzeRoomWorkflow = async (fileBuffer, mimeType) => {
 
     const finalPrice = Math.round(area * currentConfig.Base_Price * multiplier);
 
-    // 4. Trả về cho Controller
     return {
         details: { area, clutter_status: clutter_level, description, price_per_m2: currentConfig.Base_Price },
         final_price_vnd: finalPrice,

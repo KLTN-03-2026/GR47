@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 
-// Giả sử bạn định nghĩa thêm MESS_LEVEL trong utils (1: Low, 2: Medium, 3: High)
 const MESS_LEVEL = {
     LOW: 1,
     MEDIUM: 2,

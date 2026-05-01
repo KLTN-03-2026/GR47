@@ -1,4 +1,3 @@
-// src/routes/admin/index.js
 import express from 'express';
 import * as ClientController from '../../controllers/ClientController.js';
 import * as AdminController from '../../controllers/AdminController.js';

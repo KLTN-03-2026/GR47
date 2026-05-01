@@ -22,31 +22,19 @@ const ClientSchema = new Schema(
     { timestamps: true }
 );
 
-/**
- * Pre-save hook: async, không nhận next
- * Hash password khi trường Password bị thay đổi
- */
 ClientSchema.pre('save', async function () {
     if (!this.isModified('Password')) return;
 
-    // 👉 THÊM DÒNG NÀY: Kiểm tra nếu đã là hash bcrypt thì bỏ qua
     if (/^\$2[aby]\$/.test(this.Password)) return;
 
     const salt = await bcrypt.genSalt(SALT_ROUNDS);
     this.Password = await bcrypt.hash(this.Password, salt);
 });
 
-/**
- * Instance method: so sánh mật khẩu
- * Dùng function để this trỏ đúng document
- */
 ClientSchema.methods.comparePassword = function (candidatePassword) {
     return bcrypt.compare(candidatePassword, this.Password);
 };
 
-/**
- * Static helper: tạo client với password đã hash (dùng khi muốn tạo programmatically)
- */
 ClientSchema.statics.createWithHashedPassword = async function (clientData) {
     const data = { ...clientData };
     if (data.Password && !/^\$2[aby]\$/.test(data.Password)) {

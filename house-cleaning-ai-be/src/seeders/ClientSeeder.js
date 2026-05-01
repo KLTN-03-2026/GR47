@@ -1,4 +1,3 @@
-// src/seeders/clientSeeder.js
 import 'dotenv/config';
 import bcrypt from 'bcrypt';
 import { connectDB, disconnectDB } from '../config/database.js';

@@ -119,7 +119,6 @@ export const getAllCleanersFull = async (req, res) => {
 
 export const checkAuth = async (req, res) => {
     try {
-        // req.user.id được lấy từ payload của JWT trong Middleware protect
         const cleaner = await Cleaner.findById(req.user.id);
 
         if (!cleaner) {
@@ -129,7 +128,6 @@ export const checkAuth = async (req, res) => {
             });
         }
 
-        // Kiểm tra trạng thái hoạt động (Active/Banned/Inactive)
         if (cleaner.Status !== CLEANER_STATUS.ACTIVE) {
             return res.status(403).json({
                 success: false,
@@ -137,7 +135,6 @@ export const checkAuth = async (req, res) => {
             });
         }
 
-        // Trả về dữ liệu cleaner (toJSON trong Model sẽ tự động loại bỏ Password)
         return res.status(200).json({
             success: true,
             message: 'Xác thực tài khoản thành công',

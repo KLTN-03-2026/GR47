@@ -11,7 +11,6 @@ const AdminSchema = new Schema(
         Admin_Id: {
             type: Number,
             required: false,
-            // If you need auto-increment numeric Admin_Id, implement a counter collection/plugin.
         },
         Username: {
             type: String,
@@ -74,11 +73,10 @@ const AdminSchema = new Schema(
         },
     },
     {
-        timestamps: true, // createdAt, updatedAt
+        timestamps: true,
     }
 );
 
-/** Hash password before save when modified */
 AdminSchema.pre('save', async function (next) {
     try {
         if (!this.isModified('Password')) return next();
@@ -90,12 +88,10 @@ AdminSchema.pre('save', async function (next) {
     }
 });
 
-/** Instance method to compare password */
 AdminSchema.methods.comparePassword = function (candidatePassword) {
     return bcrypt.compare(candidatePassword, this.Password);
 };
 
-/** Static helper to create admin with hashed password */
 AdminSchema.statics.createWithHashedPassword = async function (adminData) {
     const data = { ...adminData };
     if (data.Password) {

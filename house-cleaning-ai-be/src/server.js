@@ -1,15 +1,11 @@
-// server.js
 import 'dotenv/config';
 import http from 'http';
-import app from './App.js'; // matches file name App.js
+import app from './App.js';
 import { connectDB, disconnectDB } from './config/database.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 let server;
 
-/**
- * Start application: connect DB then start HTTP server
- */
 async function start() {
   try {
     await connectDB();
@@ -25,9 +21,6 @@ async function start() {
   }
 }
 
-/**
- * Graceful shutdown
- */
 async function gracefulShutdown(signal) {
   console.log(`Received ${signal}. Shutting down gracefully...`);
   try {

@@ -28,20 +28,16 @@ const analyzeRoomWorkflow = async (fileBuffer, mimeType) => {
         High_Factor: 1.5
     };
 
-    console.log('☁️ Đang tải ảnh lên Cloudinary...');
     const cloudinaryResult = await uploadToCloudinary(fileBuffer);
     const secureImageUrl = cloudinaryResult.secure_url;
 
     const base64String = fileBuffer.toString('base64');
     const imagePart = { inlineData: { data: base64String, mimeType } };
 
-    console.log('🕵️‍♂️ Nhịp 1: Đang hỏi AI xem đây là phòng gì...');
     const modelNhip1 = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', systemInstruction: ROOM_IDENTIFICATION_PROMPT });
     const result1 = await modelNhip1.generateContent(['Đây là loại phòng gì?', imagePart]);
     const roomTypeHint = result1.response.text().trim().toLowerCase();
-    console.log(`✅ AI đoán đây là phòng: "${roomTypeHint}"`);
 
-    console.log('🚀 Nhịp 2: Đang mớm mồi RAG và phân tích độ bẩn...');
     const modelNhip2 = genAI.getGenerativeModel({
         model: 'gemini-2.5-flash',
         systemInstruction: getFullAssessmentPrompt(roomTypeHint),
@@ -87,7 +83,7 @@ export const analyzeRoomImage = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Lỗi gọi Gemini hoặc Cloudinary:', error);
+        console.error('Lỗi gọi Gemini hoặc Cloudinary:', error);
         let friendlyMessage = 'Lỗi Server hoặc AI: ' + error.message;
         if (error.status === 503 || error.message.includes('503') || error.message.includes('high demand')) {
             friendlyMessage = 'Hệ thống AI hiện đang tạm thời quá tải do lượng yêu cầu cao. Vui lòng đợi khoảng 1 phút và thử phân tích lại nhé!';

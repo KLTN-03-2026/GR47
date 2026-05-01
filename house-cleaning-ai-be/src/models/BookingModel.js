@@ -18,7 +18,7 @@ const bookingSchema = new mongoose.Schema({
     },
     Booking_Status: {
         type: String,
-        enum: Object.values(BOOKING_STATUS), // Lấy tất cả giá trị từ utils
+        enum: Object.values(BOOKING_STATUS),
         default: BOOKING_STATUS.WAITING
     },
     Payment_Status: {
@@ -34,18 +34,10 @@ const bookingSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    Service_Date: {
-        type: Date,
-        required: [true, 'Vui lòng chọn ngày và giờ dọn dẹp']
-    },
-    Service_Address: {
-        type: String,
-        required: [true, 'Vui lòng nhập địa chỉ chính xác']
-    },
     Notes: {
         type: String,
         trim: true,
-        default: "" // Khách không ghi gì thì để trống
+        default: ""
     }
 }, {
     timestamps: true

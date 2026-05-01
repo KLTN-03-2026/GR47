@@ -1,11 +1,9 @@
 import AIConfig from '../models/AIConfigModel.js';
 
-// API Lấy cấu hình AI đang được áp dụng hiện tại (Is_Active: true)
 export const getCurrentAIConfig = async (req, res) => {
     try {
         const currentConfig = await AIConfig.findOne({ Is_Active: true });
 
-        // Nếu DB rỗng (trường hợp chưa chạy Seeder)
         if (!currentConfig) {
             return res.status(404).json({
                 success: false,
@@ -32,7 +30,6 @@ export const updateAIConfig = async (req, res) => {
     try {
         const { Base_Price, Medium_Factor, High_Factor } = req.body;
 
-        // 1. Validate dữ liệu đầu vào
         if (!Base_Price || !Medium_Factor || !High_Factor) {
             return res.status(400).json({
                 success: false,
@@ -40,8 +37,6 @@ export const updateAIConfig = async (req, res) => {
             });
         }
 
-        // 2. Tạo một dòng cấu hình mới (Hướng 2: Lưu lịch sử)
-        // Mặc định schema đã set Is_Active: true, nên Hook pre-save sẽ tự chạy và tắt các giá cũ.
         const newConfig = await AIConfig.create({
             Base_Price: Number(Base_Price),
             Medium_Factor: Number(Medium_Factor),
@@ -64,10 +59,8 @@ export const updateAIConfig = async (req, res) => {
     }
 };
 
-// API Bonus: Xem lịch sử biến động giá (Cho Admin)
 export const getConfigHistory = async (req, res) => {
     try {
-        // Lấy tất cả lịch sử, sắp xếp ngày mới nhất lên đầu
         const history = await AIConfig.find().sort({ createdAt: -1 });
 
         return res.status(200).json({

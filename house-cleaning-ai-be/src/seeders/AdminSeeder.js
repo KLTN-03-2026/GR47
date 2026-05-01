@@ -1,4 +1,3 @@
-// src/seeders/adminSeeder.js
 import 'dotenv/config';
 import bcrypt from 'bcrypt';
 import { connectDB, disconnectDB } from '../config/database.js';
@@ -40,7 +39,6 @@ async function seedAdmins() {
         for (const adminData of sampleAdmins) {
             const filter = { Username: adminData.Username };
 
-            // Hash password before upsert because findOneAndUpdate upsert won't trigger pre('save')
             let hashedPassword;
             if (adminData.Password) {
                 const salt = await bcrypt.genSalt(SALT_ROUNDS);

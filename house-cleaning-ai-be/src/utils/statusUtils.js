@@ -1,5 +1,3 @@
-// src/utils/statusUtils.js
-
 export const CLIENTSTATUS = {
   BANNED: 0,
   ACTIVE: 1,

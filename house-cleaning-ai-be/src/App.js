@@ -20,7 +20,6 @@ app.use('/api', routes);
 // Simple health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// Debug helper: list registered routes (development only)
 if (process.env.NODE_ENV !== 'production') {
   setImmediate(() => {
     console.log('Registered routes:');

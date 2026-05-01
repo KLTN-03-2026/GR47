@@ -18,14 +18,12 @@ const AIConfigSchema = new mongoose.Schema({
     },
     Is_Active: {
         type: Boolean,
-        default: true // Mặc định khi tạo mới sẽ được áp dụng luôn
+        default: true
     }
 }, {
-    timestamps: true // Tự động sinh ra createdAt (Ngày cập nhật) và updatedAt
+    timestamps: true
 });
 
-// THUẬT TOÁN TỰ ĐỘNG TẮT GIÁ CŨ
-// Trước khi lưu (save) 1 dòng mới vào DB, chạy hàm này:
 AIConfigSchema.pre('save', async function () {
     if (this.Is_Active) {
         await this.constructor.updateMany(
@@ -33,7 +31,6 @@ AIConfigSchema.pre('save', async function () {
             { $set: { Is_Active: false } }
         );
     }
-    // Đã xóa dòng next(); ở đây
 });
 
 export default mongoose.model('AI_Config', AIConfigSchema);

@@ -1,17 +1,11 @@
 import { cleanDataset, messyDataset } from './dataset.js';
 
-/**
- * 🔥 NHỊP 1: Prompt "hỏi nhanh" để AI đoán loại phòng (Lấy mồi cho RAG)
- */
 export const ROOM_IDENTIFICATION_PROMPT = `
 Bạn là AI phân tích không gian. Nhiệm vụ của bạn là nhìn vào bức ảnh và xác định đây là loại phòng gì.
 Chỉ trả về 1 TỪ DUY NHẤT bằng tiếng Việt (ví dụ: "khách", "ngủ", "bếp", "tắm", "vệ sinh", "khác").
 Tuyệt đối không giải thích thêm.
 `;
 
-/**
- * 🔥 NHỊP 2: System Prompt chính để đánh giá độ bẩn (Như sếp đã viết)
- */
 export const ROOM_ASSESSMENT_SYSTEM_PROMPT = `
 Bạn là một chuyên gia AI giám định không gian nội thất và đánh giá tình trạng vệ sinh phòng.
 Nhiệm vụ của bạn là quan sát hình ảnh căn phòng được người dùng cung cấp và đánh giá các thông số theo định dạng JSON.

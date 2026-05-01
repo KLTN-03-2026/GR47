@@ -4,7 +4,6 @@ import jwt from 'jsonwebtoken';
 import { CLIENTSTATUS } from '../utils/statusUtils.js';
 import { v2 as cloudinary } from 'cloudinary';
 
-// Khởi tạo cấu hình Cloudinary ngay đầu file
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
@@ -15,7 +14,6 @@ export const login = async (req, res) => {
     try {
         const { Phone_Number, Password } = req.body;
 
-        // 1. Kiểm tra input cơ bản
         if (!Phone_Number || !Password) {
             return res.status(400).json({
                 success: false,
@@ -23,8 +21,6 @@ export const login = async (req, res) => {
             });
         }
 
-        // 2. Tìm User trong Database
-        // CHÚ Ý: Phải gọi .select('+Password') vì trong Model bạn đã để select: false
         const client = await Client.findOne({ Phone_Number }).select('+Password');
 
         if (!client) {
@@ -34,7 +30,6 @@ export const login = async (req, res) => {
             });
         }
 
-        // 3. Kiểm tra mật khẩu bằng instance method đã viết ở Schema
         const isMatch = await client.comparePassword(Password);
         if (!isMatch) {
             return res.status(401).json({
@@ -43,7 +38,6 @@ export const login = async (req, res) => {
             });
         }
 
-        // 4. Kiểm tra trạng thái tài khoản (Tuỳ chọn nhưng khuyên dùng)
         if (client.Status !== CLIENTSTATUS.ACTIVE) {
             return res.status(403).json({
                 success: false,
@@ -51,8 +45,6 @@ export const login = async (req, res) => {
             });
         }
 
-        // 5. Tạo JWT Token
-        // Cần có biến JWT_SECRET trong file .env
         const token = jwt.sign(
             {
                 id: client._id,
@@ -60,12 +52,9 @@ export const login = async (req, res) => {
                 role: 'client'
             },
             process.env.JWT_SECRET || 'fallback_secret_key_please_change',
-            { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } // Token sống 7 ngày
+            { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
         );
 
-        // 6. Trả về Response
-        // Mặc định Express khi dùng res.json() sẽ gọi hàm toJSON() của Mongoose Document.
-        // Hàm toJSON bạn định nghĩa trong Model đã tự động xóa trường Password!
         return res.status(200).json({
             success: true,
             message: 'Đăng nhập thành công',
@@ -119,7 +108,6 @@ export const register = async (req, res) => {
 
 export const getAllClientsFull = async (req, res) => {
     try {
-        // 1. Nhận các tham số từ query URL (có gán giá trị mặc định)
         const {
             page = 1,
             limit = 10,
@@ -129,10 +117,8 @@ export const getAllClientsFull = async (req, res) => {
             order = 'desc'
         } = req.query;
 
-        // 2. Xây dựng bộ lọc (Query Object)
         const query = {};
 
-        // 2.1 Tìm kiếm linh hoạt theo Tên hoặc Số điện thoại (Không phân biệt hoa thường)
         if (search) {
             query.$or = [
                 { Full_Name: { $regex: search, $options: 'i' } },
@@ -140,32 +126,25 @@ export const getAllClientsFull = async (req, res) => {
             ];
         }
 
-        // 2.2 Lọc theo trạng thái (nếu client có truyền lên)
         if (status !== undefined && status !== '') {
             query.Status = Number(status);
         }
 
-        // 3. Thiết lập Phân trang
         const pageNumber = parseInt(page, 10);
         const limitNumber = parseInt(limit, 10);
         const skip = (pageNumber - 1) * limitNumber;
 
-        // 4. Thiết lập Sắp xếp (Mặc định: mới nhất lên đầu)
         const sortOptions = {};
         sortOptions[sortBy] = order === 'desc' ? -1 : 1;
 
-        // 5. Query Database (Dùng Promise.all để chạy song song 2 lệnh giúp tăng tốc API)
         const [clients, totalItems] = await Promise.all([
-            // Lệnh 1: Lấy data theo bộ lọc, phân trang và sắp xếp
             Client.find(query)
                 .sort(sortOptions)
                 .skip(skip)
                 .limit(limitNumber),
-            // Lệnh 2: Đếm tổng số lượng bản ghi thỏa mãn điều kiện để frontend làm nút Next/Prev
             Client.countDocuments(query)
         ]);
 
-        // 6. Trả về Response
         return res.status(200).json({
             success: true,
             message: 'Lấy danh sách khách hàng thành công',
@@ -234,7 +213,6 @@ export const updateAvatar = async (req, res) => {
             });
         }
 
-        // 👤 BƯỚC 3: KIỂM TRA DB
         const client = await Client.findById(urlId);
         if (!client) {
             return res.status(404).json({ success: false, message: 'Khách hàng không tồn tại' });
@@ -265,9 +243,9 @@ export const updateAvatar = async (req, res) => {
             message: 'Cập nhật ảnh đại diện thành công!',
             data: {
                 _id: client._id,
-                Full_Name: client.Full_Name, // Đã khớp với Model
-                Email: client.Email,         // Đã khớp với Model
-                Avatar: client.Avatar        // Đã khớp với Model
+                Full_Name: client.Full_Name,
+                Email: client.Email,
+                Avatar: client.Avatar
             }
         });
 
@@ -282,7 +260,7 @@ export const updateAvatar = async (req, res) => {
 
 export const getMyProfile = async (req, res) => {
     try {
-        const tokenId = req.user.id; 
+        const tokenId = req.user.id;
 
         if (!tokenId) {
             return res.status(401).json({
@@ -311,8 +289,6 @@ export const getMyProfile = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: 'Lỗi hệ thống khi lấy thông tin cá nhân',
-            loi_that_su_la_gi: error.message, 
-            dong_loi: error.stack
         });
     }
 };

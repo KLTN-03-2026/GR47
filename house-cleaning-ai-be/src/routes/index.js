@@ -6,7 +6,6 @@ import clientRoutes from './clientRoutes/index.js';
 
 const router = express.Router();
 
-// Mount sub-routers
 router.use('/admin', adminRoutes);
 router.use('/cleaner', cleanerRoutes);
 router.use('/client', clientRoutes);

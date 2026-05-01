@@ -1,5 +1,3 @@
-// src/data/ai_learning/dataset.js
-
 const BASE_URL = "https://res.cloudinary.com/dllauz1wu/image/upload/v1777482278/";
 
 export const cleanDataset = [

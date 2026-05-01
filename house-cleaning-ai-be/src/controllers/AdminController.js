@@ -1,4 +1,3 @@
-// src/controllers/AdminController.js
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import Admin from '../models/AdminModel.js';
@@ -12,7 +11,6 @@ export const login = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Username và password là bắt buộc.' });
         }
 
-        // Lấy password (nếu schema đặt select: false cho Password)
         const admin = await Admin.findOne({
             $or: [{ Username: username }, { Email: username }],
         }).select('+Password');
@@ -21,7 +19,6 @@ export const login = async (req, res) => {
             return res.status(401).json({ success: false, message: 'Tên đăng nhập hoặc mật khẩu không đúng.' });
         }
 
-        // Kiểm tra trạng thái
         if (admin.Status === ADMINSTATUS.BANNED) {
             return res.status(403).json({ success: false, message: 'Tài khoản đã bị khóa.' });
         }

@@ -1,6 +1,3 @@
-// src/config/database.js
-// Usage: import { connectDB, disconnectDB } from './config/database.js';
-
 import mongoose from 'mongoose';
 
 const {
@@ -31,12 +28,7 @@ if (envUri) {
     console.warn('Warning: no valid MongoDB URI found in MONGO_URI or MONGODB_URI. Falling back to localhost.');
 }
 
-// Các option hợp lệ hiện tại (tùy chỉnh theo nhu cầu)
 const connectOptions = {
-    // maxPoolSize: 10,
-    // serverSelectionTimeoutMS: 5000,
-    // socketTimeoutMS: 45000,
-    // family: 4, // IPv4
 };
 
 mongoose.set('strictQuery', false);

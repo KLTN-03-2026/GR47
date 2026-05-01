@@ -3,9 +3,6 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_here';
 
-/**
- * Lấy token từ header Authorization Bearer hoặc cookie 'token'
- */
 const extractToken = (req) => {
     const authHeader = req.headers.authorization || req.headers.Authorization;
     if (authHeader && String(authHeader).startsWith('Bearer ')) {
@@ -17,10 +14,6 @@ const extractToken = (req) => {
     return null;
 };
 
-/**
- * Verify token và attach payload vào req.user
- * Trả 401 nếu token thiếu hoặc không hợp lệ
- */
 export const protect = (req, res, next) => {
     try {
         const token = extractToken(req);
@@ -41,12 +34,10 @@ export const protect = (req, res, next) => {
             return res.status(401).json({ message: 'Phiên đăng nhập đã hết hạn' });
         }
 
-        // Gán thông tin user an toàn cho req.user
         req.user = {
             id: payload.id || payload.sub || payload.userId,
             role: payload.role || payload.roles || payload.roleName,
             isAdmin: payload.isAdmin || payload.admin || false,
-            // thêm các claim an toàn khác nếu cần
         };
 
         return next();
