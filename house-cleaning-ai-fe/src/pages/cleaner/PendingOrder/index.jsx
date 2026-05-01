@@ -24,7 +24,6 @@ export const CleanerPendingOrderDetail = () => {
         return `${hours} giờ làm việc`;
     };
 
-    // 1. LẤY DATA CHI TIẾT KHI VÀO TRANG
     useEffect(() => {
         const fetchOrderDetail = async () => {
             setIsLoading(true);
@@ -73,7 +72,6 @@ export const CleanerPendingOrderDetail = () => {
         if (id) fetchOrderDetail();
     }, [id]);
 
-    // 2. HÀM GỌI API NHẬN ĐƠN (ACCEPT BOOKING) - ĐÃ CÓ CHỐT CHẶN RACE CONDITION
     const handleAcceptOrder = async () => {
         setStatus("loading");
         setApiMessage("");

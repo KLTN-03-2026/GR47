@@ -13,7 +13,6 @@ export const CleanerCancelOrder = () => {
     const [status, setStatus] = useState("idle"); // idle | loading | success | error
     const [errorMessage, setErrorMessage] = useState("");
 
-    // Mục 1: Danh sách lý do hủy
     const reasons = [
         "Hỏng xe / Tai nạn trên đường",
         "Ốm đau đột xuất",
@@ -21,14 +20,11 @@ export const CleanerCancelOrder = () => {
         "Lý do bất khả kháng khác"
     ];
 
-    // Hoạt động: Xử lý Hủy đơn
     const handleCancelOrder = () => {
         if (!selectedReason) return;
         setStatus("loading");
 
-        // Giả lập logic hệ thống
         setTimeout(() => {
-            // Giả lập tỉ lệ thất bại: Ví dụ đơn đã chuyển sang trạng thái "Đang làm" (IN_PROGRESS)
             const isAlreadyInProgress = Math.random() > 0.85; // 15% khả năng lỗi
 
             if (isAlreadyInProgress) {
@@ -36,7 +32,6 @@ export const CleanerCancelOrder = () => {
                 setErrorMessage("Không thể hủy: Đơn hàng này đã được ghi nhận là Đang dọn dẹp.");
             } else {
                 setStatus("success");
-                // Thành công: Đơn trả về trạng thái WAITING cho người khác nhận
                 setTimeout(() => navigate("/cleaner/my-jobs"), 2500);
             }
         }, 1500);

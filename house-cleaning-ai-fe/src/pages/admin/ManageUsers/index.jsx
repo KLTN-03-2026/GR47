@@ -6,42 +6,37 @@ import {
 } from "lucide-react";
 
 export const ManageUsers = () => {
-    // === 1. QUẢN LÝ TRẠNG THÁI (STATE) ===
     const [activeTab, setActiveTab] = useState("CLIENT"); // "CLIENT" hoặc "CLEANER"
     const [users, setUsers] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [notification, setNotification] = useState({ type: "", message: "" });
 
-    // Tìm kiếm & Phân trang
     const [searchInput, setSearchInput] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
 
-    // === 2. DEBOUNCE SEARCH (Tránh spam API) ===
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearch(searchInput);
-            setCurrentPage(1); // Reset về trang 1 khi tìm kiếm
+            setCurrentPage(1);
         }, 500);
         return () => clearTimeout(timer);
     }, [searchInput]);
 
-    // === 3. LOGIC GỌI API THẬT ===
     const fetchData = async () => {
         setIsLoading(true);
         try {
             const token = localStorage.getItem("admin_token");
             const API_BASE = import.meta.env.VITE_API_BASE_ADMIN_URL;
 
-            // Chọn đúng endpoint dựa trên Tab hiện tại
             const endpoint = activeTab === "CLIENT"
                 ? "/get-all-clients-full"
                 : "/get-all-cleaners-full";
 
             const queryParams = new URLSearchParams({
                 page: currentPage,
-                limit: 9, // 9 items/page cho Grid 3x3 đẹp nhất
+                limit: 9,
                 search: debouncedSearch
             }).toString();
 
@@ -69,14 +64,11 @@ export const ManageUsers = () => {
         }
     };
 
-    // Gọi lại API khi đổi Tab, đổi Trang, hoặc Search xong
     useEffect(() => {
         fetchData();
     }, [activeTab, currentPage, debouncedSearch]);
 
-    // === 4. XỬ LÝ KHÓA/MỞ TÀI KHOẢN (MOCKUP LOGIC) ===
     const handleToggleLock = (userId, currentStatus) => {
-        // Sau này bạn chỉ cần gọi thêm 1 API UpdateStatus tại đây
         const newStatus = currentStatus === 1 ? 0 : 1;
         setUsers(users.map(u => u._id === userId ? { ...u, Status: newStatus } : u));
         showNotification("success", `Đã cập nhật trạng thái người dùng thành công.`);

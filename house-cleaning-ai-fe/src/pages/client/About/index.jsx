@@ -4,7 +4,6 @@ import "aos/dist/aos.css";
 import { Sparkles, ShieldCheck, Clock, Users } from "lucide-react";
 
 export const About = () => {
-  // Khởi tạo hiệu ứng AOS khi component được render
   useEffect(() => {
     AOS.init({
       duration: 1000,

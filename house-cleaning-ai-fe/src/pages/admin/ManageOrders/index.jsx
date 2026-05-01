@@ -9,7 +9,6 @@ export const ManageOrders = () => {
     const [displaySearch, setDisplaySearch] = useState(""); // Lưu từ khóa khi bấm Enter
     const [notification, setNotification] = useState({ type: "", message: "" });
 
-    // Dữ liệu giả lập danh sách Đơn hàng (Mục 2)
     const [orders] = useState([
         { id: "BK-8899", client: "Lê Minh Tuấn (0901...)", cleaner: "Nguyễn Văn A", status: "IN_PROGRESS", amount: 350000, date: "04/04/2026" },
         { id: "BK-9911", client: "Trần Thị Lan (0988...)", cleaner: "Chưa có người nhận", status: "PENDING", amount: 280000, date: "04/04/2026" },
@@ -18,7 +17,6 @@ export const ManageOrders = () => {
         { id: "BK-5544", client: "Vũ Đình F (0933...)", cleaner: "Phạm Hữu D", status: "COMPLETED", amount: 500000, date: "02/04/2026" },
     ]);
 
-    // Hoạt động: Tìm kiếm (Nhập và Enter)
     const handleSearch = (e) => {
         if (e.key === 'Enter') {
             setDisplaySearch(searchTerm);
@@ -30,18 +28,15 @@ export const ManageOrders = () => {
         order.client.toLowerCase().includes(displaySearch.toLowerCase())
     );
 
-    // Hiển thị thông báo
     const showToast = (type, message) => {
         setNotification({ type, message });
         setTimeout(() => setNotification({ type: "", message: "" }), 3000);
     };
 
-    // Hoạt động: Giám sát (Read-only) - Thất bại khi cố tình sửa
     const handleRowClick = () => {
         showToast("error", "Giao diện giám sát chỉ cho phép xem (Read-only). Bạn không có quyền can thiệp thay đổi trạng thái đơn hàng đang chạy.");
     };
 
-    // Helper render Badge trạng thái
     const renderStatusBadge = (status) => {
         switch (status) {
             case "PENDING":

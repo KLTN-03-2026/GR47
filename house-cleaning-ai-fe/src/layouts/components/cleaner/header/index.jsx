@@ -5,7 +5,6 @@ import { Bell, User, Star, ShieldCheck, LogOut, Loader2 } from "lucide-react";
 export const CleanerHeader = () => {
     const navigate = useNavigate();
 
-    // Quản lý trạng thái thông tin đối tác
     const [cleanerInfo, setCleanerInfo] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -47,7 +46,6 @@ export const CleanerHeader = () => {
         verifyCleaner();
     }, []);
 
-    // HÀM ĐĂNG XUẤT: Xóa sạch token và về trang Login
     const handleLogout = () => {
         localStorage.removeItem("cleaner_token");
         localStorage.removeItem("cleaner_user");

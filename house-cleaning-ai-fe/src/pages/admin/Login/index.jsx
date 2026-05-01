@@ -16,17 +16,14 @@ export const AdminLogin = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    // Hoạt động: Đăng nhập hệ thống (Đã kết nối API thật)
     const handleLogin = async (e) => {
         e.preventDefault();
         setError("");
         setIsLoading(true);
 
         try {
-            // Lấy URL từ biến môi trường
             const API_URL = import.meta.env.VITE_API_BASE_ADMIN_URL;
 
-            // Gọi API Đăng nhập CMS
             const response = await fetch(`${API_URL}/login`, {
                 method: "POST",
                 headers: {
@@ -41,19 +38,14 @@ export const AdminLogin = () => {
 
             const data = await response.json();
 
-            // Kiểm tra lỗi từ Backend (Sai pass, bị khóa, chưa kích hoạt...)
             if (!response.ok || !data.success) {
                 throw new Error(data.message || "Tài khoản không tồn tại hoặc không có quyền truy cập.");
             }
-
-            // ĐĂNG NHẬP THÀNH CÔNG
-            // Lưu token và data vào biến của Admin
             localStorage.setItem("admin_token", data.data.token);
             localStorage.setItem("admin_user", JSON.stringify(data.data.admin));
 
             console.log("Admin đăng nhập thành công:", data.message);
 
-            // Thành công: Chuyển đến màn hình Dashboard
             navigate("/admin/dashboard");
 
         } catch (err) {

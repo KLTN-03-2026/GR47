@@ -9,7 +9,6 @@ export const FinancePromotions = () => {
     const [notification, setNotification] = useState({ type: "", message: "" });
     const [isExporting, setIsExporting] = useState(false);
 
-    // Form tạo Voucher (Mục 1)
     const [voucherForm, setVoucherForm] = useState({
         code: "",
         percent: "",
@@ -17,7 +16,6 @@ export const FinancePromotions = () => {
         quantity: ""
     });
 
-    // Dữ liệu giả lập Lịch sử dòng tiền (Mục 2)
     const [transactions] = useState([
         { id: "TX-9981", sender: "Lê Minh Tuấn (Client)", receiver: "Nguyễn Văn A (Cleaner)", amount: 350000, status: "SUCCESS", date: "04/04/2026 14:30" },
         { id: "TX-9982", sender: "Hệ thống CleanAI", receiver: "Trần Thị B (Cleaner)", amount: 500000, status: "SUCCESS", date: "03/04/2026 09:15" },
@@ -34,38 +32,31 @@ export const FinancePromotions = () => {
         setVoucherForm({ ...voucherForm, [e.target.name]: e.target.value });
     };
 
-    // Hoạt động: Tạo Voucher
     const handleCreateVoucher = (e) => {
         e.preventDefault();
 
         const today = new Date().setHours(0, 0, 0, 0);
         const selectedDate = new Date(voucherForm.expiryDate).setHours(0, 0, 0, 0);
 
-        // Thất bại: Sai ngày (Ngày hết hạn nằm trong quá khứ)
         if (selectedDate < today) {
             showToast("error", "Lỗi: Ngày hết hạn không hợp lệ. Vui lòng chọn ngày trong tương lai.");
             return;
         }
 
-        // Thất bại: Thiếu thông tin
         if (!voucherForm.code || !voucherForm.percent || !voucherForm.quantity) {
             showToast("error", "Vui lòng nhập đầy đủ thông tin Voucher.");
             return;
         }
 
-        // Thành công
         showToast("success", `Tạo thành công ${voucherForm.quantity} mã Voucher: ${voucherForm.code.toUpperCase()}`);
         setVoucherForm({ code: "", percent: "", expiryDate: "", quantity: "" });
     };
 
-    // Hoạt động: Xuất Excel (Mục 3)
     const handleExportExcel = () => {
         setIsExporting(true);
 
-        // Giả lập delay tải file
         setTimeout(() => {
             setIsExporting(false);
-            // Bạn có thể giả lập lỗi export bằng cách thay đổi logic ở đây nếu cần
             showToast("success", "Đã xuất file lịch sử dòng tiền: transaction_history_042026.xlsx");
         }, 1500);
     };
