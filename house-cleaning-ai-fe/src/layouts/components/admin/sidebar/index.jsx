@@ -87,38 +87,6 @@ export const AdminSidebar = () => {
                     );
                 })}
             </div>
-
-            {/* Logout */}
-            <div
-                className="p-3 border-t border-slate-200 flex justify-center relative mb-4"
-                onMouseEnter={() => setHoveredItem("logout")}
-                onMouseLeave={() => setHoveredItem(null)}
-            >
-                <button
-                    onClick={handleLogout}
-                    className="p-2.5 rounded-xl border-2 border-transparent text-slate-400 hover:border-red-300 hover:bg-red-50 hover:text-red-500 transition-all duration-300"
-                >
-                    <LogOut size={22} strokeWidth={2} />
-                </button>
-
-                {/* Flyout logout - Outline đỏ */}
-                <AnimatePresence>
-                    {hoveredItem === "logout" && (
-                        <motion.div
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -10, transition: { duration: 0.1 } }}
-                            transition={{ duration: 0.2, ease: "easeOut" }}
-                            className="absolute left-full top-1/2 -translate-y-1/2 ml-4 z-50 pointer-events-none"
-                        >
-                            <div className="relative bg-white border-2 border-red-500 text-red-600 text-sm font-black px-4 py-2.5 rounded-xl whitespace-nowrap shadow-xl">
-                                Đăng xuất CMS
-                                <span className="absolute -left-[7px] top-1/2 -translate-y-1/2 w-3 h-3 bg-white border-l-2 border-b-2 border-red-500 rotate-45 rounded-sm" />
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
         </aside>
     );
 };

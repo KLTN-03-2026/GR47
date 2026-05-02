@@ -20,9 +20,8 @@ clientRouter.get('/get-all-clients-full', ClientMiddleware.protect, ClientContro
 clientRouter.post('/create-booking', ClientMiddleware.protect, BookingController.createBooking)
 clientRouter.get('/order-detail/:id', ClientMiddleware.protect, BookingController.getBookingDetailsById);
 clientRouter.get('/my-bookings', ClientMiddleware.protect, BookingController.getMyBookings);
-
 clientRouter.post('/analyze-room-image', ClientMiddleware.protect, upload.single('room_image'), AIController.analyzeRoomImage);
-
 clientRouter.get('/get-my-profile', ClientMiddleware.protect, ClientController.getMyProfile);
 clientRouter.post('/update-avatar/:id', ClientMiddleware.protect, upload.single('avatar'), ClientController.updateAvatar);
+clientRouter.post('/update-profile', ClientMiddleware.protect, ClientController.updateProfile);
 export default clientRouter;

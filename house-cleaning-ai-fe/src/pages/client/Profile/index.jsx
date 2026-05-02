@@ -7,9 +7,6 @@ import {
     ArrowUpRight, ArrowDownLeft, Calendar, Mail, Phone, Settings, Check, X, ZoomIn, ZoomOut
 } from "lucide-react";
 
-// ==========================================================================
-// HELPER CẮT ẢNH
-// ==========================================================================
 const createImage = (url) =>
     new Promise((resolve, reject) => {
         const image = new Image();
@@ -42,9 +39,6 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
     });
 };
 
-// ==========================================================================
-// COMPONENT: POPUP CẮT & TẢI ẢNH (AVATAR CROPPER)
-// ==========================================================================
 const AvatarCropperModal = ({ isOpen, onClose, imageSrc, onUploadSuccess, showToast, userData }) => {
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
@@ -83,7 +77,8 @@ const AvatarCropperModal = ({ isOpen, onClose, imageSrc, onUploadSuccess, showTo
             }
 
             onUploadSuccess(avatarResult.data.avatar);
-            showToast("success", "Cập nhật ảnh đại diện thành công!");
+            
+            showToast("success", avatarResult.message || "Cập nhật ảnh đại diện thành công!");
             onClose();
         } catch (error) {
             console.error("❌ Lỗi Cập Nhật Avatar:", error);
@@ -147,9 +142,6 @@ const AvatarCropperModal = ({ isOpen, onClose, imageSrc, onUploadSuccess, showTo
     );
 };
 
-// ==========================================================================
-// MAIN COMPONENT: CLIENT PROFILE
-// ==========================================================================
 export const ClientProfile = () => {
     const [activeTab, setActiveTab] = useState("PROFILE");
     const [toast, setToast] = useState(null);
@@ -250,9 +242,6 @@ export const ClientProfile = () => {
     );
 };
 
-// ==========================================================================
-// TAB: HỒ SƠ CÁ NHÂN (Đã ghép Logic Call API)
-// ==========================================================================
 const ProfileTab = ({ showToast }) => {
     const fileInputRef = useRef(null);
     
@@ -269,11 +258,10 @@ const ProfileTab = ({ showToast }) => {
         name: "",
         email: "",
         phone: "",
-        gender: "Nam",
+        gender: "unknown",
         dob: ""
     });
 
-    // 1. GỌI API LẤY PROFILE NGAY KHI MỞ TAB
     useEffect(() => {
         const fetchMyProfile = async () => {
             try {
@@ -300,8 +288,8 @@ const ProfileTab = ({ showToast }) => {
                     name: data.Full_Name || data.Name || "",
                     email: data.Email || "",
                     phone: data.Phone_Number || data.Phone || "Chưa cập nhật",
-                    gender: data.Gender || "Nam",
-                    dob: data.Date_Of_Birth ? data.Date_Of_Birth.split('T')[0] : ""
+                    gender: data.Gender || "unknown", // Nhận male/female/other/unknown từ BE
+                    dob: data.Birth_Date ? data.Birth_Date.split('T')[0] : (data.Date_Of_Birth ? data.Date_Of_Birth.split('T')[0] : "")
                 });
 
                 if (data.Avatar) setAvatar(data.Avatar);
@@ -320,16 +308,13 @@ const ProfileTab = ({ showToast }) => {
         fetchMyProfile();
     }, []);
 
-    // 2. XỬ LÝ CHỌN VÀ CẮT ẢNH
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
         if (!file) return;
-
         if (file.size > 2 * 1024 * 1024) {
             showToast("error", "Ảnh quá lớn. Vui lòng chọn ảnh dưới 2MB");
             return;
         }
-
         setTempImageSrc(URL.createObjectURL(file));
         setCropModalOpen(true);
         e.target.value = null; 
@@ -341,12 +326,9 @@ const ProfileTab = ({ showToast }) => {
         const storage = localStorage.getItem("client_token") ? localStorage : sessionStorage;
         storage.setItem("client_user", JSON.stringify(updatedUser));
         setUserData(updatedUser);
-
-        // KÍCH HOẠT SỰ KIỆN CHO THẰNG HEADER CẬP NHẬT NGAY LẬP TỨC
         window.dispatchEvent(new Event("userProfileUpdated"));
     };
 
-    // 3. GỌI API LƯU THÔNG TIN (TÊN, EMAIL, NGÀY SINH...)
     const handleSave = async () => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!formData.name || !formData.email) {
@@ -363,9 +345,10 @@ const ProfileTab = ({ showToast }) => {
             const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
             const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
 
-            // Giả định sếp có viết một cái API tên là update-profile bên Backend
+            if (!token) throw new Error("Vui lòng đăng nhập lại!");
+
             const response = await fetch(`${API_URL}/update-profile`, {
-                method: "PUT", // hoặc POST tùy Backend sếp code
+                method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
@@ -373,8 +356,8 @@ const ProfileTab = ({ showToast }) => {
                 body: JSON.stringify({
                     Full_Name: formData.name,
                     Email: formData.email,
-                    Gender: formData.gender,
-                    Date_Of_Birth: formData.dob
+                    Gender: formData.gender, // Gửi nguyên male/female/other xuống Backend
+                    Birth_Date: formData.dob
                 })
             });
 
@@ -384,16 +367,14 @@ const ProfileTab = ({ showToast }) => {
                 throw new Error(result.message || "Cập nhật hồ sơ thất bại");
             }
 
-            // Update localStorage
             const updatedUser = { ...userData, ...result.data };
             const storage = localStorage.getItem("client_token") ? localStorage : sessionStorage;
             storage.setItem("client_user", JSON.stringify(updatedUser));
             setUserData(updatedUser);
 
-            // KÍCH HOẠT SỰ KIỆN CHO THẰNG HEADER CẬP NHẬT TÊN NGAY LẬP TỨC
             window.dispatchEvent(new Event("userProfileUpdated"));
-
-            showToast("success", "Đã lưu thông tin hồ sơ thành công!");
+            
+            showToast("success", result.message || "Đã lưu thông tin hồ sơ thành công!");
         } catch (error) {
             console.error("❌ Lỗi Cập nhật Profile:", error);
             showToast("error", error.message || "Có lỗi xảy ra khi lưu thay đổi");
@@ -402,7 +383,6 @@ const ProfileTab = ({ showToast }) => {
         }
     };
 
-    // UI LÚC ĐANG GỌI API GET PROFILE
     if (isLoadingProfile) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px]">
@@ -488,17 +468,22 @@ const ProfileTab = ({ showToast }) => {
                     <div>
                         <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-3 ml-1">Giới tính</label>
                         <div className="flex gap-3 bg-gray-50/50 p-1.5 rounded-2xl border border-gray-200">
-                            {["Nam", "Nữ", "Khác"].map(g => (
+                            {/* 🔥 ĐÃ FIX: Chữ hiển thị là Nam/Nữ/Khác, nhưng Data gán vào form vẫn là male/female/other */}
+                            {[
+                                { val: "male", label: "Nam" }, 
+                                { val: "female", label: "Nữ" }, 
+                                { val: "other", label: "Khác" }
+                            ].map(g => (
                                 <button
-                                    key={g}
+                                    key={g.val}
                                     disabled={isSaving}
-                                    onClick={() => setFormData({ ...formData, gender: g })}
+                                    onClick={() => setFormData({ ...formData, gender: g.val })}
                                     className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50
-                                        ${formData.gender === g 
+                                        ${formData.gender === g.val 
                                             ? 'bg-white text-green-700 shadow-sm border border-gray-100' 
                                             : 'text-gray-500 hover:bg-gray-100/50'}`}
                                 >
-                                    {g}
+                                    {g.label}
                                 </button>
                             ))}
                         </div>
@@ -532,9 +517,6 @@ const ProfileTab = ({ showToast }) => {
     );
 };
 
-// ==========================================================================
-// CÁC TAB CÒN LẠI (Sổ địa chỉ, Ví, Bảo mật)
-// ==========================================================================
 const AddressTab = ({ showToast }) => {
     const [addresses, setAddresses] = useState([
         { id: 1, title: "Nhà riêng", detail: "123 Đường ABC, Phường 1, Quận 1, TP.HCM", isDefault: true },

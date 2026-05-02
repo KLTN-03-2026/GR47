@@ -292,3 +292,48 @@ export const getMyProfile = async (req, res) => {
         });
     }
 };
+
+export const updateProfile = async (req, res) => {
+    try {
+        const clientId = req.user.id; 
+
+        const { Full_Name, Email, Gender, Birth_Date, Address } = req.body;
+
+        const updateData = {};
+        if (Full_Name) updateData.Full_Name = Full_Name;
+        if (Email) updateData.Email = Email;
+        if (Gender) updateData.Gender = Gender;
+        if (Birth_Date) updateData.Birth_Date = Birth_Date;
+        if (Address) updateData.Address = Address;
+
+        const updatedClient = await Client.findByIdAndUpdate(
+            clientId,
+            { $set: updateData },
+            { 
+                new: true,
+                runValidators: true
+            }
+        ).select('-Password -__v');
+
+        if (!updatedClient) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy thông tin khách hàng!'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'Cập nhật thông tin cá nhân thành công!',
+            data: updatedClient
+        });
+
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Lỗi hệ thống khi cập nhật hồ sơ',
+            loi_that_su_la_gi: error.message
+        });
+    }
+};
