@@ -1,7 +1,6 @@
 export const CLIENTSTATUS = {
   BANNED: 0,
   ACTIVE: 1,
-  PENDING: 2,
 };
 
 export const ADMINSTATUS = {
@@ -11,9 +10,9 @@ export const ADMINSTATUS = {
 };
 
 export const CLEANER_APPROVAL_STATUS = {
-    PENDING: 'Pending',
-    ACTIVE: 'Active',
-    REJECTED: 'Rejected'
+    PENDING: 0,
+    ACTIVE: 1,
+    REJECTED: 2
 };
 
 export const CLEANER_STATUS = {
@@ -27,7 +26,7 @@ export const BOOKING_STATUS = {
     ACCEPTED: 2,
     IN_PROGRESS: 3,
     COMPLETED: 4,
-    CANCELLED: 5
+    CANCELLED: 0
 };
 
 export const PAYMENT_STATUS = {

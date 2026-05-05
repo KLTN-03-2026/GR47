@@ -14,15 +14,15 @@ export const login = async (req, res) => {
     try {
         const { Phone_Number, Password } = req.body;
 
+        // 1. Kiểm tra đầu vào
         if (!Phone_Number || !Password) {
             return res.status(400).json({
                 success: false,
-                message: 'Vui lòng cung cấp số điện thoại và mật khẩu.'
+                message: 'Vui lòng cung cấp đầy đủ số điện thoại và mật khẩu.'
             });
         }
 
         const client = await Client.findOne({ Phone_Number }).select('+Password');
-
         if (!client) {
             return res.status(401).json({
                 success: false,
@@ -30,6 +30,7 @@ export const login = async (req, res) => {
             });
         }
 
+        // 3. So sánh Password
         const isMatch = await client.comparePassword(Password);
         if (!isMatch) {
             return res.status(401).json({
@@ -38,10 +39,10 @@ export const login = async (req, res) => {
             });
         }
 
-        if (client.Status !== CLIENTSTATUS.ACTIVE) {
+        if (client.Status === CLIENTSTATUS.BANNED) {
             return res.status(403).json({
                 success: false,
-                message: 'Tài khoản của bạn chưa được kích hoạt hoặc đã bị khóa.'
+                message: 'Tài khoản của bạn đã bị khóa do vi phạm chính sách. Vui lòng liên hệ CSKH để được hỗ trợ.'
             });
         }
 
@@ -63,10 +64,10 @@ export const login = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Lỗi Login Controller:', error);
+        console.error('Lỗi Login Controller (Client):', error);
         return res.status(500).json({
             success: false,
-            message: 'Đã xảy ra lỗi máy chủ.',
+            message: 'Đã xảy ra lỗi máy chủ trong quá trình đăng nhập.',
             error: error.message
         });
     }
@@ -295,7 +296,7 @@ export const getMyProfile = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
     try {
-        const clientId = req.user.id; 
+        const clientId = req.user.id;
 
         const { Full_Name, Email, Gender, Birth_Date, Address } = req.body;
 
@@ -309,7 +310,7 @@ export const updateProfile = async (req, res) => {
         const updatedClient = await Client.findByIdAndUpdate(
             clientId,
             { $set: updateData },
-            { 
+            {
                 new: true,
                 runValidators: true
             }
@@ -334,6 +335,43 @@ export const updateProfile = async (req, res) => {
             success: false,
             message: 'Lỗi hệ thống khi cập nhật hồ sơ',
             loi_that_su_la_gi: error.message
+        });
+    }
+};
+
+export const lockAndUnlockClient = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const client = await Client.findById(id);
+
+        if (!client) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy thông tin khách hàng trong hệ thống để xử lý!'
+            });
+        }
+
+        const newStatus = client.Status === CLIENTSTATUS.ACTIVE
+            ? CLIENTSTATUS.BANNED
+            : CLIENTSTATUS.ACTIVE;
+
+        client.Status = newStatus;
+        await client.save();
+
+        const statusMessage = newStatus === CLIENTSTATUS.ACTIVE ? 'mở khóa' : 'khóa';
+
+        return res.status(200).json({
+            success: true,
+            message: `Đã ${statusMessage} tài khoản của khách hàng thành công!`,
+            data: client
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Máy chủ gặp sự cố khi cập nhật trạng thái tài khoản khách hàng',
+            error: error.message
         });
     }
 };

@@ -41,10 +41,13 @@ export const CleanerRegister = () => {
         if (type === 'selfie' && selfieRef.current) selfieRef.current.value = "";
     };
 
-    // Xử lý Submit
-    const handleSubmit = (e) => {
+    // ==========================================
+    // LOGIC CALL API ĐĂNG KÝ
+    // ==========================================
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
+        // 1. Validate Form
         if (!images.cccd || !images.selfie) {
             setError("Vui lòng tải lên đầy đủ hình ảnh định danh (CCCD và Ảnh chân dung).");
             return;
@@ -58,12 +61,42 @@ export const CleanerRegister = () => {
         setError("");
         setStatus("loading");
 
-        // Giả lập API
-        setTimeout(() => {
+        try {
+            const API_URL = import.meta.env.VITE_API_BASE_CLEANER_URL;
+
+            // 2. Gói data vào FormData (Vì có chứa File Ảnh)
+            const submitData = new FormData();
+            submitData.append("Full_Name", formData.name);
+            submitData.append("Phone_Number", formData.phone);
+            submitData.append("Password", formData.password);
+            submitData.append("Identity_Card", images.cccd); // Backend nhận File
+            submitData.append("Selfie_Image", images.selfie); // Backend nhận File
+
+            // 3. Gửi Request POST
+            const response = await fetch(`${API_URL}/register`, {
+                method: "POST",
+                // KHÔNG set Content-Type, trình duyệt sẽ tự động nhận diện FormData và chèn boundary
+                body: submitData
+            });
+
+            const result = await response.json();
+
+            // 4. Xử lý lỗi từ Backend
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || "Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.");
+            }
+
+            // 5. Thành công -> Đổi UI sang màn hình Chờ Duyệt
             setStatus("success");
-        }, 1500);
+
+        } catch (err) {
+            console.error("❌ Lỗi Đăng Ký Đối Tác:", err);
+            setError(err.message || "Lỗi kết nối máy chủ. Vui lòng thử lại sau.");
+            setStatus("idle");
+        }
     };
 
+    // GIAO DIỆN THÀNH CÔNG CHỜ DUYỆT
     if (status === "success") {
         return (
             <div className="min-h-screen bg-[#f4f7f5] flex items-center justify-center p-4 font-sans">
@@ -76,10 +109,10 @@ export const CleanerRegister = () => {
                         Hồ sơ của bạn đang ở trạng thái <strong className="text-orange-500 uppercase tracking-widest">Pending</strong>. Vui lòng chờ Admin duyệt tài khoản trong vòng 24h làm việc.
                     </p>
                     <button
-                        onClick={() => navigate("/")}
+                        onClick={() => navigate("/cleaner/login")}
                         className="w-full py-4 bg-[#114A2E] text-white font-bold rounded-xl hover:bg-[#0c3822] transition-colors shadow-lg shadow-green-900/10"
                     >
-                        Quay về trang chủ
+                        Quay về Đăng nhập
                     </button>
                 </div>
             </div>
@@ -89,7 +122,7 @@ export const CleanerRegister = () => {
     return (
         <div className="min-h-screen w-full flex font-sans bg-[#f4f7f5]">
 
-            {/* CỘT TRÁI: Branding & Lợi ích (Màu xanh thẫm) */}
+            {/* CỘT TRÁI: Branding & Lợi ích */}
             <div className="hidden lg:flex w-1/2 bg-[#114A2E] relative overflow-hidden flex-col justify-center p-16">
 
                 {/* Abstract Tech Patterns / Background Blur */}
@@ -174,7 +207,8 @@ export const CleanerRegister = () => {
                             </div>
                             <input
                                 required type="text" placeholder="Họ và Tên"
-                                className="w-full pl-11 pr-4 py-3.5 bg-white border border-green-700/20 rounded-xl focus:border-green-600 focus:ring-0 outline-none text-sm transition-colors text-gray-800 placeholder:text-gray-400"
+                                disabled={status === "loading"}
+                                className="w-full pl-11 pr-4 py-3.5 bg-white border border-green-700/20 rounded-xl focus:border-green-600 focus:ring-0 outline-none text-sm transition-colors text-gray-800 placeholder:text-gray-400 disabled:opacity-50"
                                 value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })}
                             />
                         </div>
@@ -185,7 +219,8 @@ export const CleanerRegister = () => {
                             </div>
                             <input
                                 required type="tel" placeholder="Số điện thoại"
-                                className="w-full pl-11 pr-4 py-3.5 bg-white border border-green-700/20 rounded-xl focus:border-green-600 focus:ring-0 outline-none text-sm transition-colors text-gray-800 placeholder:text-gray-400"
+                                disabled={status === "loading"}
+                                className="w-full pl-11 pr-4 py-3.5 bg-white border border-green-700/20 rounded-xl focus:border-green-600 focus:ring-0 outline-none text-sm transition-colors text-gray-800 placeholder:text-gray-400 disabled:opacity-50"
                                 value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })}
                             />
                         </div>
@@ -196,7 +231,8 @@ export const CleanerRegister = () => {
                             </div>
                             <input
                                 required type="password" placeholder="Mật khẩu"
-                                className="w-full pl-11 pr-4 py-3.5 bg-white border border-green-700/20 rounded-xl focus:border-green-600 focus:ring-0 outline-none text-sm transition-colors text-gray-800 placeholder:text-gray-400"
+                                disabled={status === "loading"}
+                                className="w-full pl-11 pr-4 py-3.5 bg-white border border-green-700/20 rounded-xl focus:border-green-600 focus:ring-0 outline-none text-sm transition-colors text-gray-800 placeholder:text-gray-400 disabled:opacity-50"
                                 value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })}
                             />
                         </div>
@@ -207,15 +243,16 @@ export const CleanerRegister = () => {
                             <div className="grid grid-cols-2 gap-4">
                                 {/* CCCD */}
                                 <div className="text-center">
-                                    <input type="file" ref={cccdRef} className="hidden" accept="image/jpeg, image/png" onChange={(e) => handleImageChange(e, 'cccd')} />
+                                    <input type="file" ref={cccdRef} disabled={status === "loading"} className="hidden" accept="image/jpeg, image/png" onChange={(e) => handleImageChange(e, 'cccd')} />
                                     <div
-                                        onClick={() => cccdRef.current.click()}
-                                        className="w-full h-32 bg-[#f4f7f5] rounded-xl border-2 border-dashed border-green-700/20 flex flex-col items-center justify-center cursor-pointer hover:bg-green-50 hover:border-green-600 transition-all relative overflow-hidden group"
+                                        onClick={() => status !== "loading" && cccdRef.current.click()}
+                                        className={`w-full h-32 bg-[#f4f7f5] rounded-xl border-2 border-dashed border-green-700/20 flex flex-col items-center justify-center cursor-pointer transition-all relative overflow-hidden group
+                                            ${status === "loading" ? "opacity-50 cursor-not-allowed" : "hover:bg-green-50 hover:border-green-600"}`}
                                     >
                                         {previews.cccd ? (
                                             <>
                                                 <img src={previews.cccd} alt="CCCD" className="w-full h-full object-cover" />
-                                                <button type="button" onClick={(e) => removeImage('cccd', e)} className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full hover:bg-red-500 transition-colors">
+                                                <button type="button" disabled={status === "loading"} onClick={(e) => removeImage('cccd', e)} className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full hover:bg-red-500 transition-colors">
                                                     <X size={14} />
                                                 </button>
                                             </>
@@ -230,15 +267,16 @@ export const CleanerRegister = () => {
 
                                 {/* Selfie */}
                                 <div className="text-center">
-                                    <input type="file" ref={selfieRef} className="hidden" accept="image/jpeg, image/png" onChange={(e) => handleImageChange(e, 'selfie')} />
+                                    <input type="file" ref={selfieRef} disabled={status === "loading"} className="hidden" accept="image/jpeg, image/png" onChange={(e) => handleImageChange(e, 'selfie')} />
                                     <div
-                                        onClick={() => selfieRef.current.click()}
-                                        className="w-full h-32 bg-[#f4f7f5] rounded-xl border-2 border-dashed border-green-700/20 flex flex-col items-center justify-center cursor-pointer hover:bg-green-50 hover:border-green-600 transition-all relative overflow-hidden group"
+                                        onClick={() => status !== "loading" && selfieRef.current.click()}
+                                        className={`w-full h-32 bg-[#f4f7f5] rounded-xl border-2 border-dashed border-green-700/20 flex flex-col items-center justify-center cursor-pointer transition-all relative overflow-hidden group
+                                            ${status === "loading" ? "opacity-50 cursor-not-allowed" : "hover:bg-green-50 hover:border-green-600"}`}
                                     >
                                         {previews.selfie ? (
                                             <>
                                                 <img src={previews.selfie} alt="Selfie" className="w-full h-full object-cover" />
-                                                <button type="button" onClick={(e) => removeImage('selfie', e)} className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full hover:bg-red-500 transition-colors">
+                                                <button type="button" disabled={status === "loading"} onClick={(e) => removeImage('selfie', e)} className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full hover:bg-red-500 transition-colors">
                                                     <X size={14} />
                                                 </button>
                                             </>
@@ -262,7 +300,7 @@ export const CleanerRegister = () => {
                             <button
                                 type="submit"
                                 disabled={status === "loading"}
-                                className="flex-grow py-3.5 bg-[#114A2E] text-white rounded-xl text-sm font-medium hover:bg-[#0c3822] active:scale-[0.98] transition-all flex justify-center items-center shadow-lg shadow-green-900/10"
+                                className="flex-grow py-3.5 bg-[#114A2E] text-white rounded-xl text-sm font-medium hover:bg-[#0c3822] active:scale-[0.98] transition-all flex justify-center items-center shadow-lg shadow-green-900/10 disabled:opacity-70 disabled:cursor-not-allowed"
                             >
                                 {status === "loading" ? (
                                     <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

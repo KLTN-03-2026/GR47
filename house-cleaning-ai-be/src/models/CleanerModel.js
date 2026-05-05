@@ -15,7 +15,7 @@ const CleanerSchema = new Schema(
         Selfie_Image: { type: String, required: true, trim: true, maxlength: 255 },
         Rating: { type: Number, required: true, default: 5.0, min: 0, max: 5 },
         Approval_Status: {
-            type: String,
+            type: Number,
             required: true,
             enum: Object.values(CLEANER_APPROVAL_STATUS),
             default: CLEANER_APPROVAL_STATUS.PENDING

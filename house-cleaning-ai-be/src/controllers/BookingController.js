@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 import Booking from '../models/BookingModel.js';
 import BookingDetail from '../models/BookingDetailModel.js';
 import { BOOKING_STATUS, PAYMENT_STATUS } from '../utils/statusUtils.js';
+import Client from '../models/ClientModel.js';
+import Cleaner from '../models/CleanerModel.js';
 
 export const createBooking = async (req, res) => {
     try {
@@ -516,6 +518,59 @@ export const getBookingDetailForCleaner = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: "Lỗi Server: " + error.message
+        });
+    }
+};
+
+export const getAllBookings = async (req, res) => {
+    try {
+        const { page = 1, limit = 10, search = '', status, sortBy = 'createdAt', order = 'desc' } = req.query;
+
+        const query = {};
+
+        if (status) {
+            query.Booking_Status = status;
+        }
+
+        if (search) {
+            const clients = await Client.find({ Full_Name: { $regex: search, $options: 'i' } }).select('_id');
+            const clientIds = clients.map(c => c._id);
+            
+            query.$or = [
+                { Notes: { $regex: search, $options: 'i' } },
+                { Client_Id: { $in: clientIds } } 
+            ];
+        }
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const sortOptions = { [sortBy]: order === 'desc' ? -1 : 1 };
+
+        const [bookings, totalItems] = await Promise.all([
+            Booking.find(query)
+                .populate('Client_Id', 'Full_Name Phone_Number')
+                .populate('Cleaner_Id', 'Full_Name Phone_Number')
+                .sort(sortOptions)
+                .skip(skip)
+                .limit(parseInt(limit)),
+            Booking.countDocuments(query)
+        ]);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Lấy toàn bộ danh sách chuyến đi thành công!',
+            data: bookings,
+            pagination: {
+                currentPage: parseInt(page),
+                totalItems,
+                totalPages: Math.ceil(totalItems / parseInt(limit))
+            }
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Máy chủ gặp sự cố khi trích xuất danh sách chuyến đi',
+            chi_tiet_loi: error.message
         });
     }
 };
