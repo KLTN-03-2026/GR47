@@ -10,41 +10,70 @@ import {
   Check,
   AlertCircle,
   ChevronLeft,
-  CreditCard,
+  ChevronDown,
+  CircleDot,
+  Circle
 } from "lucide-react";
 
 export const ClientBookingInfo = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 1. HỨNG DỮ LIỆU TỪ TRANG AI RESULT
   const aiResultData = location.state?.aiData;
-
-  useEffect(() => {
-    // Khởi tạo thư viện AOS
-    AOS.init({
-      duration: 800,
-      once: true,
-      easing: "ease-out-cubic",
-    });
-
-    if (!aiResultData) {
-      navigate("/", { replace: true });
-    }
-  }, [aiResultData, navigate]);
-
-  const initialPrice = aiResultData?.totalPrice || 0;
 
   const [formData, setFormData] = useState({
     date: "",
     time: "",
-    address: "",
     notes: "",
     voucher: "",
   });
 
+  // STATE QUẢN LÝ ĐỊA CHỈ MỚI
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [addressMode, setAddressMode] = useState("new"); // 'saved' hoặc 'new'
+  const [selectedSavedAddress, setSelectedSavedAddress] = useState("");
+  const [customAddress, setCustomAddress] = useState("");
+
   const [appliedVoucher, setAppliedVoucher] = useState(null);
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    AOS.init({ duration: 800, once: true, easing: "ease-out-cubic" });
+    if (!aiResultData) navigate("/", { replace: true });
+  }, [aiResultData, navigate]);
+
+  useEffect(() => {
+    const fetchAddresses = async () => {
+      try {
+        const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
+        if (!token) return;
+
+        const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
+        const response = await fetch(`${API_URL}/get-my-addresses`, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success && result.data.length > 0) {
+          const addresses = result.data;
+          setSavedAddresses(addresses);
+          setAddressMode("saved"); // Tự động bật chế độ chọn từ Sổ
+
+          // Ưu tiên chọn địa chỉ mặc định, nếu không có thì lấy cái đầu tiên
+          const defaultAddress = addresses.find(addr => addr.Is_Default) || addresses[0];
+          setSelectedSavedAddress(defaultAddress.Detail);
+        }
+      } catch (error) {
+        console.error("Lỗi khi tải sổ địa chỉ:", error);
+      }
+    };
+
+    fetchAddresses();
+  }, []);
+
+  const initialPrice = aiResultData?.totalPrice || 0;
 
   const handleApplyVoucher = () => {
     if (formData.voucher.toUpperCase() === "MYAPP2026") {
@@ -56,14 +85,15 @@ export const ClientBookingInfo = () => {
     }
   };
 
-  // 2. XỬ LÝ CHUYỂN SANG TRANG THANH TOÁN (KHÔNG GỌI API TẠI ĐÂY NỮA)
   const handleProceedToPayment = (e) => {
     e.preventDefault();
     setErrors({});
 
-    // Validate cơ bản
-    if (!formData.address) {
-      setErrors({ address: "Vui lòng nhập địa chỉ để Cleaner tìm đến bạn" });
+    // Chốt địa chỉ dựa theo chế độ khách đang chọn
+    const finalAddress = addressMode === "saved" ? selectedSavedAddress : customAddress;
+
+    if (!finalAddress.trim()) {
+      setErrors({ address: "Vui lòng cung cấp địa chỉ để Cleaner tìm đến bạn" });
       return;
     }
     if (!formData.date || !formData.time) {
@@ -73,15 +103,14 @@ export const ClientBookingInfo = () => {
 
     const finalPrice = initialPrice - (appliedVoucher?.discount || 0);
 
-    // Gom tất cả data vào một cục để mang sang trang Thanh Toán
     const bookingPayload = {
-      ...formData, // date, time, address, notes
+      ...formData,
+      address: finalAddress, // Nhét địa chỉ đã chốt vào payload
       finalPrice,
       initialPrice,
-      aiResultData, // area, messiness, originalImageId...
+      aiResultData,
     };
 
-    // Chuyển trang và mang theo data
     navigate("/payment", { state: { bookingPayload } });
   };
 
@@ -108,26 +137,24 @@ export const ClientBookingInfo = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* FORM INPUT */}
           <div className="lg:col-span-8 space-y-6" data-aos="fade-right">
-            <div className="card-white-large space-y-10">
+            <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-10">
+              
               <section data-aos="fade-up" data-aos-delay="100">
                 <h3 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
-                  <Calendar className="text-green-600" size={20} /> 1. Thời gian
-                  làm việc
+                  <Calendar className="text-green-600" size={20} /> 1. Thời gian làm việc
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <input
                     type="date"
-                    className="w-full px-5 py-4 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:ring-2 focus:ring-green-500 outline-none transition-all font-bold"
-                    onChange={(e) =>
-                      setFormData({ ...formData, date: e.target.value })
-                    }
+                    className="w-full px-5 py-4 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:ring-2 focus:ring-green-500 outline-none transition-all font-bold text-gray-700"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                   />
                   <input
                     type="time"
-                    className={`w-full px-5 py-4 rounded-2xl bg-gray-50 border ${errors.time ? "border-red-500" : "border-gray-100"} focus:bg-white focus:ring-2 focus:ring-green-500 outline-none transition-all font-bold`}
-                    onChange={(e) =>
-                      setFormData({ ...formData, time: e.target.value })
-                    }
+                    className={`w-full px-5 py-4 rounded-2xl bg-gray-50 border ${errors.time ? "border-red-500" : "border-gray-100"} focus:bg-white focus:ring-2 focus:ring-green-500 outline-none transition-all font-bold text-gray-700`}
+                    value={formData.time}
+                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
                   />
                 </div>
                 {errors.time && (
@@ -139,16 +166,62 @@ export const ClientBookingInfo = () => {
 
               <section data-aos="fade-up" data-aos-delay="200">
                 <h3 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
-                  <MapPin className="text-green-600" size={20} /> 2. Địa chỉ nhà
-                  chi tiết
+                    <MapPin className="text-green-600" size={20} /> 2. Địa chỉ dọn dẹp
                 </h3>
-                <textarea
-                  placeholder="Số nhà, tên đường, phường/xã, quận/huyện..."
-                  className={`w-full px-5 py-4 rounded-2xl bg-gray-50 border ${errors.address ? "border-red-500" : "border-gray-100"} focus:bg-white focus:ring-2 focus:ring-green-500 outline-none transition-all min-h-[120px] font-medium`}
-                  onChange={(e) =>
-                    setFormData({ ...formData, address: e.target.value })
-                  }
-                />
+
+                {savedAddresses.length > 0 && (
+                    <div className="flex gap-6 mb-5">
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                            {addressMode === "saved" ? <CircleDot size={20} className="text-green-600" /> : <Circle size={20} className="text-gray-300 group-hover:text-green-400 transition-colors" />}
+                            <input 
+                                type="radio" className="hidden" name="addressMode" 
+                                checked={addressMode === "saved"} onChange={() => setAddressMode("saved")} 
+                            />
+                            <span className={`text-sm font-bold ${addressMode === "saved" ? "text-green-700" : "text-gray-600"}`}>Chọn từ Sổ địa chỉ</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                            {addressMode === "new" ? <CircleDot size={20} className="text-green-600" /> : <Circle size={20} className="text-gray-300 group-hover:text-green-400 transition-colors" />}
+                            <input 
+                                type="radio" className="hidden" name="addressMode" 
+                                checked={addressMode === "new"} onChange={() => setAddressMode("new")} 
+                            />
+                            <span className={`text-sm font-bold ${addressMode === "new" ? "text-green-700" : "text-gray-600"}`}>Nhập địa chỉ khác</span>
+                        </label>
+                    </div>
+                )}
+
+                {addressMode === "saved" && savedAddresses.length > 0 ? (
+                    <div className="relative animate-fade-in">
+                        <select 
+                            className="w-full pl-5 pr-12 py-4 rounded-2xl bg-green-50/50 border border-green-200 text-green-800 font-bold outline-none focus:ring-2 focus:ring-green-500 transition-all appearance-none cursor-pointer"
+                            value={selectedSavedAddress}
+                            onChange={(e) => {
+                                setSelectedSavedAddress(e.target.value);
+                                setErrors({ ...errors, address: "" });
+                            }}
+                        >
+                            {savedAddresses.map(addr => (
+                                <option key={addr._id} value={addr.Detail}>
+                                    {addr.Is_Default ? "★ [Mặc định] " : ""}{addr.Detail}
+                                </option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-green-600 pointer-events-none" size={20} />
+                    </div>
+                ) : (
+                    <div className="animate-fade-in">
+                        <textarea
+                            placeholder="Gõ địa chỉ cụ thể: Số nhà, tên đường, phường/xã, quận/huyện..."
+                            value={customAddress}
+                            className={`w-full px-5 py-4 rounded-2xl bg-gray-50 border ${errors.address ? "border-red-500" : "border-gray-100"} focus:bg-white focus:ring-2 focus:ring-green-500 outline-none transition-all min-h-[120px] font-medium text-gray-800`}
+                            onChange={(e) => {
+                                setCustomAddress(e.target.value);
+                                if (errors.address) setErrors({ ...errors, address: "" });
+                            }}
+                        />
+                    </div>
+                )}
+                
                 {errors.address && (
                   <p className="mt-2 text-xs font-bold text-red-500 flex items-center gap-1">
                     <AlertCircle size={14} /> {errors.address}
@@ -158,15 +231,13 @@ export const ClientBookingInfo = () => {
 
               <section data-aos="fade-up" data-aos-delay="300">
                 <h3 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
-                  <FileText className="text-green-600" size={20} /> 3. Ghi chú
-                  cho Cleaner
+                  <FileText className="text-green-600" size={20} /> 3. Ghi chú cho Cleaner
                 </h3>
                 <textarea
                   placeholder="Lưu ý: Nhà có thú cưng, mang thêm máy hút bụi, v.v..."
-                  className="w-full px-5 py-4 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:ring-2 focus:ring-green-500 outline-none transition-all min-h-[100px] font-medium"
-                  onChange={(e) =>
-                    setFormData({ ...formData, notes: e.target.value })
-                  }
+                  value={formData.notes}
+                  className="w-full px-5 py-4 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:ring-2 focus:ring-green-500 outline-none transition-all min-h-[100px] font-medium text-gray-800"
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 />
               </section>
             </div>
@@ -198,10 +269,9 @@ export const ClientBookingInfo = () => {
                     <input
                       type="text"
                       placeholder="MÃ GIẢM GIÁ"
+                      value={formData.voucher}
                       className="flex-grow px-4 py-2 rounded-xl bg-gray-50 border border-gray-100 focus:ring-1 focus:ring-green-500 outline-none text-sm font-bold uppercase"
-                      onChange={(e) =>
-                        setFormData({ ...formData, voucher: e.target.value })
-                      }
+                      onChange={(e) => setFormData({ ...formData, voucher: e.target.value })}
                     />
                     <button
                       onClick={handleApplyVoucher}
@@ -241,7 +311,6 @@ export const ClientBookingInfo = () => {
                 </div>
               </div>
 
-              {/* Nút này giờ chỉ chuyển trang chứ chưa gọi API */}
               <button
                 onClick={handleProceedToPayment}
                 className="w-full mt-6 bg-green-600 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-green-200 hover:bg-green-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"

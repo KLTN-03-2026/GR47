@@ -326,3 +326,51 @@ export const lockAndUnlockCleaner = async (req, res) => {
         });
     }
 };
+
+export const rejectCleaner = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { Reject_Reason } = req.body; 
+
+        const cleaner = await Cleaner.findById(id);
+
+        if (!cleaner) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy hồ sơ nhân viên dọn dẹp trong hệ thống!'
+            });
+        }
+
+        // Kiểm tra xem hồ sơ đã bị từ chối từ trước chưa để tránh xử lý thừa
+        if (cleaner.Approval_Status === CLEANER_APPROVAL_STATUS.REJECTED) {
+            return res.status(400).json({
+                success: false,
+                message: 'Hồ sơ của nhân viên này đã bị từ chối từ trước đó rồi!'
+            });
+        }
+
+        // Cập nhật trạng thái sang TỪ CHỐI
+        cleaner.Approval_Status = CLEANER_APPROVAL_STATUS.REJECTED;
+        
+        await cleaner.save();
+
+        // Giả lập log hệ thống gửi thông báo cho nhân viên
+        console.log(`\n======================================================`);
+        console.log(`🛑 [HỆ THỐNG KIỂM DUYỆT] Đã TỪ CHỐI hồ sơ: ${cleaner.Full_Name}`);
+        console.log(`Lý do: ${Reject_Reason || 'Không cung cấp lý do chi tiết'}`);
+        console.log(`======================================================\n`);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Đã từ chối hồ sơ đăng ký của nhân viên thành công!',
+            data: cleaner
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Máy chủ gặp sự cố khi xử lý từ chối hồ sơ nhân viên',
+            error: error.message
+        });
+    }
+};

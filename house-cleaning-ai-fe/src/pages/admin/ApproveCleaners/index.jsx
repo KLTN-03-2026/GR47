@@ -14,14 +14,13 @@ export const ApproveCleaners = () => {
     const [searchTerm, setSearchFilter] = useState("");
 
     const CLEANER_APPROVAL_STATUS = (item) => {
-        if(item === 0) {
+        if (item === 0) {
             return "Đang chờ duyệt"
-        } else if(item === 1) {
+        } else if (item === 1) {
             return "Đã duyệt"
-        } else if(item === 2) {
+        } else if (item === 2) {
             return "Từ chối"
         }
-        
     }
 
     const fetchPendingCleaners = async () => {
@@ -75,7 +74,7 @@ export const ApproveCleaners = () => {
     };
 
     // ==========================================
-    // 🔥 LOGIC PHÊ DUYỆT THẬT (GỌI API BACKEND)
+    // 🔥 LOGIC PHÊ DUYỆT (GỌI API BACKEND)
     // ==========================================
     const handleApprove = async (id) => {
         setIsProcessing(true);
@@ -83,7 +82,6 @@ export const ApproveCleaners = () => {
             const token = localStorage.getItem("admin_token");
             const baseUrl = import.meta.env.VITE_API_BASE_ADMIN_URL;
 
-            // Gọi đúng route POST sếp vừa viết ở Backend
             const response = await fetch(`${baseUrl}/approve-cleaner/${id}`, {
                 method: "POST",
                 headers: {
@@ -95,13 +93,8 @@ export const ApproveCleaners = () => {
             const result = await response.json();
 
             if (response.ok && result.success) {
-                // 1. Thông báo thành công bằng message của Backend
                 showToast("success", result.message);
-
-                // 2. Xóa cleaner đó khỏi danh sách hiển thị (vì nó không còn PENDING nữa)
                 setPendingList(prev => prev.filter(item => item.id !== id));
-
-                // 3. Đóng Modal
                 setSelectedCleaner(null);
             } else {
                 showToast("error", result.message || "Phê duyệt thất bại.");
@@ -114,16 +107,43 @@ export const ApproveCleaners = () => {
         }
     };
 
-    const handleReject = (id) => {
-        if (!window.confirm("Từ chối hồ sơ này và yêu cầu Cleaner upload lại?")) return;
+    // ==========================================
+    // 🔥 LOGIC TỪ CHỐI KÈM LÝ DO (GỌI API BACKEND)
+    // ==========================================
+    const handleReject = async (id) => {
+        const reason = window.prompt("Vui lòng nhập lý do từ chối hồ sơ (có thể bỏ trống):");
+        // Nếu admin nhấn Cancel (Hủy) thì thoát luôn không gọi API
+        if (reason === null) return;
+
         setIsProcessing(true);
-        // Sếp có thể làm tương tự handleApprove cho logic Reject nhé
-        setTimeout(() => {
-            setPendingList(pendingList.filter(item => item.id !== id));
-            setSelectedCleaner(null);
+        try {
+            const token = localStorage.getItem("admin_token");
+            const baseUrl = import.meta.env.VITE_API_BASE_ADMIN_URL;
+
+            const response = await fetch(`${baseUrl}/reject-cleaner/${id}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ Reject_Reason: reason.trim() })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                showToast("success", result.message);
+                setPendingList(prev => prev.filter(item => item.id !== id));
+                setSelectedCleaner(null);
+            } else {
+                showToast("error", result.message || "Từ chối hồ sơ thất bại.");
+            }
+        } catch (error) {
+            console.error("Lỗi API Reject:", error);
+            showToast("error", "Không thể kết nối đến máy chủ để xử lý.");
+        } finally {
             setIsProcessing(false);
-            showToast("error", `Hồ sơ đã bị từ chối.`);
-        }, 1000);
+        }
     };
 
     const filteredList = pendingList.filter(item =>
@@ -262,7 +282,7 @@ export const ApproveCleaners = () => {
 
                         <div className="p-5 border-t border-slate-200 bg-white flex justify-end gap-3">
                             <button onClick={() => handleReject(selectedCleaner.id)} disabled={isProcessing} className="px-6 py-2.5 rounded-xl font-bold text-red-600 bg-red-50 hover:bg-red-600 hover:text-white transition-colors border border-red-100">
-                                Từ chối nộp lại
+                                {isProcessing ? "Đang xử lý..." : "Từ chối nộp lại"}
                             </button>
                             <button
                                 onClick={() => handleApprove(selectedCleaner.id)}

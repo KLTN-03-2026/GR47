@@ -7,7 +7,7 @@ import {
 
 export const ForgotPassword = () => {
     const navigate = useNavigate();
-    const [step, setStep] = useState(1); // 1: Nhập SĐT, 2: Nhập OTP & Đổi MK
+    const [step, setStep] = useState(1);
 
     const [formData, setFormData] = useState({
         phone: "",
@@ -17,14 +17,13 @@ export const ForgotPassword = () => {
     });
 
     const [countdown, setCountdown] = useState(0);
-    const [status, setStatus] = useState("idle"); // idle | loading | error | success
+    const [status, setStatus] = useState("idle");
     const [errorMsg, setErrorMsg] = useState("");
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    // Đếm ngược 60s OTP
     useEffect(() => {
         let timer;
         if (countdown > 0) {
@@ -33,31 +32,40 @@ export const ForgotPassword = () => {
         return () => clearInterval(timer);
     }, [countdown]);
 
-    // Hoạt động: Gửi mã OTP (Mục 1 & 2)
-    const handleSendOTP = (e) => {
-        e.preventDefault();
+    const handleSendOTP = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
         if (!formData.phone) return;
 
         setStatus("loading");
         setErrorMsg("");
 
-        setTimeout(() => {
-            // Giả lập Thất bại: Số điện thoại không tồn tại
-            if (formData.phone === "0000000000") {
-                setErrorMsg("Số điện thoại không tồn tại trong hệ thống.");
-                setStatus("error");
-                return;
-            }
+        try {
+            const API_BASE = import.meta.env.VITE_API_BASE_CLIENT_URL || import.meta.env.VITE_API_BASE_URL;
+            const response = await fetch(`${API_BASE}/forget-password`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ Phone_Number: formData.phone })
+            });
 
-            // Giả lập Thành công
-            setStep(2);
-            setCountdown(60);
-            setStatus("idle");
-        }, 1500);
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                setStep(2);
+                setCountdown(60);
+                setStatus("idle");
+            } else {
+                setErrorMsg(result.message || "Không thể gửi mã xác thực.");
+                setStatus("error");
+            }
+        } catch (error) {
+            setErrorMsg("Lỗi kết nối đến máy chủ.");
+            setStatus("error");
+        }
     };
 
-    // Hoạt động: Xác nhận đổi Mật khẩu (Mục 3, 4 & 5)
-    const handleResetPassword = (e) => {
+    const handleResetPassword = async (e) => {
         e.preventDefault();
 
         if (formData.newPassword !== formData.confirmPassword) {
@@ -69,18 +77,33 @@ export const ForgotPassword = () => {
         setStatus("loading");
         setErrorMsg("");
 
-        setTimeout(() => {
-            // Giả lập Thất bại: OTP sai hoặc hết hạn
-            if (formData.otp === "111111") {
-                setErrorMsg("Mã OTP không chính xác hoặc đã hết hạn.");
-                setStatus("error");
-                return;
-            }
+        try {
+            const API_BASE = import.meta.env.VITE_API_BASE_CLIENT_URL || import.meta.env.VITE_API_BASE_URL;
+            const response = await fetch(`${API_BASE}/reset-password`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    Phone_Number: formData.phone,
+                    OTP: formData.otp, // Chỉnh lại chuẩn xác 100% theo Backend của sếp
+                    New_Password: formData.newPassword
+                })
+            });
 
-            // Giả lập Thành công
-            setStatus("success");
-            setTimeout(() => navigate("/login"), 2500);
-        }, 1500);
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                setStatus("success");
+                setTimeout(() => navigate("/login"), 2500);
+            } else {
+                setErrorMsg(result.message || "Mã OTP không chính xác hoặc đã hết hạn.");
+                setStatus("error");
+            }
+        } catch (error) {
+            setErrorMsg("Lỗi kết nối đến máy chủ.");
+            setStatus("error");
+        }
     };
 
     if (status === "success") {
@@ -104,7 +127,6 @@ export const ForgotPassword = () => {
         <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
             <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
 
-                {/* Nút quay lại */}
                 <button
                     onClick={() => step === 2 ? setStep(1) : navigate(-1)}
                     className="inline-flex items-center text-sm font-bold text-gray-400 hover:text-green-600 mb-8 transition-colors"
@@ -130,7 +152,6 @@ export const ForgotPassword = () => {
                 )}
 
                 {step === 1 ? (
-                    // BƯỚC 1: NHẬP SĐT
                     <form onSubmit={handleSendOTP} className="space-y-6 animate-fade-in">
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest pl-1 mb-2">Số điện thoại</label>
@@ -148,18 +169,17 @@ export const ForgotPassword = () => {
 
                         <button
                             type="submit" disabled={status === "loading" || !formData.phone}
-                            className="btn-primary-green-lg"
+                            className="w-full py-4 bg-green-600 text-white rounded-2xl font-black text-lg hover:bg-green-700 active:scale-[0.98] transition-all shadow-lg flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {status === "loading" ? <div className="h-6 w-6 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Nhận mã OTP"}
                         </button>
                     </form>
                 ) : (
-                    // BƯỚC 2: NHẬP OTP & MK MỚI
                     <form onSubmit={handleResetPassword} className="space-y-5 animate-slide-in-right">
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest pl-1 mb-2 flex justify-between">
                                 Mã xác thực OTP
-                                <span className={countdown > 0 ? "text-orange-500" : "text-green-600 cursor-pointer hover:underline"} onClick={() => countdown === 0 && handleSendOTP({ preventDefault: () => { } })}>
+                                <span className={countdown > 0 ? "text-orange-500" : "text-green-600 cursor-pointer hover:underline"} onClick={() => countdown === 0 && handleSendOTP()}>
                                     {countdown > 0 ? `Gửi lại sau ${countdown}s` : "Gửi lại mã"}
                                 </span>
                             </label>
@@ -200,7 +220,7 @@ export const ForgotPassword = () => {
 
                         <button
                             type="submit" disabled={status === "loading"}
-                            className="w-full mt-2 py-4 bg-[#1a1c23] text-white rounded-2xl font-black text-lg hover:bg-black active:scale-[0.98] transition-all shadow-lg flex justify-center items-center"
+                            className="w-full mt-2 py-4 bg-[#1a1c23] text-white rounded-2xl font-black text-lg hover:bg-black active:scale-[0.98] transition-all shadow-lg flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {status === "loading" ? <div className="h-6 w-6 border-2 border-gray-500 border-t-white rounded-full animate-spin" /> : "Xác nhận & Đổi mật khẩu"}
                         </button>

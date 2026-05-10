@@ -375,3 +375,311 @@ export const lockAndUnlockClient = async (req, res) => {
         });
     }
 };
+
+export const forgetPassword = async (req, res) => {
+    try {
+        const { Phone_Number } = req.body;
+
+        if (!Phone_Number) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vui lòng cung cấp số điện thoại để tiến hành khôi phục mật khẩu!'
+            });
+        }
+
+        const client = await Client.findOne({ Phone_Number });
+
+        if (!client) {
+            return res.status(404).json({
+                success: false,
+                message: 'Số điện thoại này chưa được đăng ký trong hệ thống CleanAI.'
+            });
+        }
+
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
+
+        client.Reset_OTP = otpCode;
+        client.Reset_OTP_Expiry = otpExpiry;
+        await client.save();
+
+        console.log(`\n======================================================`);
+        console.log(`🚀 [MÔ PHỎNG SMS] Khách hàng: ${client.Full_Name}`);
+        console.log(`📱 Số điện thoại nhận: ${Phone_Number}`);
+        console.log(`🔑 Mã OTP khôi phục mật khẩu CleanAI của bạn là: ${otpCode}`);
+        console.log(`⏳ Mã này sẽ tự động hết hạn sau 5 phút.`);
+        console.log(`======================================================\n`);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Mã OTP khôi phục đã được tạo thành công. Vui lòng kiểm tra tin nhắn điện thoại!'
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Máy chủ gặp sự cố khi thiết lập mã khôi phục mật khẩu',
+            error: error.message
+        });
+    }
+};
+
+export const resetPassword = async (req, res) => {
+    try {
+        const { Phone_Number, OTP, New_Password } = req.body;
+
+        // 1. Kiểm tra tính toàn vẹn của dữ liệu gửi lên
+        if (!Phone_Number || !OTP || !New_Password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vui lòng cung cấp đầy đủ số điện thoại, mã OTP và mật khẩu mới!'
+            });
+        }
+
+        // 2. Tìm kiếm khách hàng (lấy kèm cả các trường OTP để kiểm tra)
+        const client = await Client.findOne({ Phone_Number });
+
+        if (!client) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy tài khoản hợp lệ với số điện thoại này.'
+            });
+        }
+
+        // 3. Đối chiếu tính chính xác của mã OTP
+        if (client.Reset_OTP !== OTP) {
+            return res.status(400).json({
+                success: false,
+                message: 'Mã OTP không chính xác. Vui lòng kiểm tra lại tin nhắn của bạn!'
+            });
+        }
+
+        // 4. Kiểm tra thời hạn của mã OTP (Phải còn hạn so với thời gian hiện tại)
+        if (!client.Reset_OTP_Expiry || client.Reset_OTP_Expiry < new Date()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Mã OTP này đã hết hạn sử dụng. Vui lòng quay lại bước trước để nhận mã mới!'
+            });
+        }
+
+        // 5. Gán mật khẩu mới (hook pre-save trong Model sẽ tự động băm mật khẩu này)
+        client.Password = New_Password;
+
+        // 6. Xóa bỏ dấu vết OTP để khóa luồng, tránh việc tái sử dụng mã
+        client.Reset_OTP = undefined;
+        client.Reset_OTP_Expiry = undefined;
+
+        await client.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Tuyệt vời! Mật khẩu của bạn đã được cập nhật thành công. Hãy thử đăng nhập lại nhé.'
+        });
+
+    } catch (error) {
+        console.error('Lỗi khi thiết lập lại mật khẩu:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Máy chủ gặp sự cố trong quá trình đổi mật khẩu',
+            error: error.message
+        });
+    }
+};
+
+export const getMyAddresses = async (req, res) => {
+    try {
+        const clientId = req.user.id;
+
+        const client = await Client.findById(clientId).select('Address');
+
+        if (!client) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy thông tin tài khoản khách hàng trong hệ thống!'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'Lấy danh sách địa chỉ cá nhân thành công!',
+            data: client.Address
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Máy chủ gặp sự cố khi trích xuất danh sách địa chỉ',
+            error: error.message
+        });
+    }
+};
+
+export const addAddress = async (req, res) => {
+    try {
+        const clientId = req.user.id;
+        const { Detail, Is_Default } = req.body;
+
+        if (!Detail || Detail.trim() === '') {
+            return res.status(400).json({
+                success: false,
+                message: 'Vui lòng cung cấp chi tiết địa chỉ mới!'
+            });
+        }
+
+        const client = await Client.findById(clientId);
+
+        if (!client) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy thông tin tài khoản khách hàng trong hệ thống!'
+            });
+        }
+
+        let isNewDefault = Is_Default === true;
+
+        if (client.Address.length === 0) {
+            isNewDefault = true;
+        }
+
+        if (isNewDefault) {
+            client.Address.forEach(addr => {
+                addr.Is_Default = false;
+            });
+        }
+
+        client.Address.push({
+            Detail: Detail.trim(),
+            Is_Default: isNewDefault
+        });
+
+        await client.save();
+
+        return res.status(201).json({
+            success: true,
+            message: 'Đã thêm địa chỉ mới vào sổ địa chỉ thành công!',
+            data: client.Address
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Máy chủ gặp sự cố khi xử lý thêm địa chỉ',
+            error: error.message
+        });
+    }
+};
+
+export const requestChangePasswordOTP = async (req, res) => {
+    try {
+        const clientId = req.user.id;
+        const client = await Client.findById(clientId);
+
+        if (!client) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy thông tin tài khoản khách hàng!'
+            });
+        }
+
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // Hạn 5 phút
+
+        client.Reset_OTP = otpCode;
+        client.Reset_OTP_Expiry = otpExpiry;
+        await client.save();
+
+        console.log(`\n======================================================`);
+        console.log(`🛡️ [MÔ PHỎNG SMS BẢO MẬT 2 LỚP] Khách hàng: ${client.Full_Name}`);
+        console.log(`📱 Số điện thoại nhận: ${client.Phone_Number}`);
+        console.log(`🔑 Mã OTP ĐỔI MẬT KHẨU của bạn là: ${otpCode}`);
+        console.log(`⏳ Mã này sẽ tự động hết hạn sau 5 phút.`);
+        console.log(`======================================================\n`);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Mã OTP xác thực đã được gửi đến số điện thoại của bạn!'
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Máy chủ gặp sự cố khi tạo mã xác thực',
+            error: error.message
+        });
+    }
+};
+
+export const changePassword = async (req, res) => {
+    try {
+        const clientId = req.user.id;
+        const { Old_Password, New_Password, OTP } = req.body;
+
+        // 1. Kiểm tra tính toàn vẹn dữ liệu
+        if (!Old_Password || !New_Password || !OTP) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vui lòng cung cấp đầy đủ mật khẩu hiện tại, mật khẩu mới và mã OTP!'
+            });
+        }
+
+        if (Old_Password === New_Password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Mật khẩu mới không được trùng với mật khẩu hiện tại!'
+            });
+        }
+
+        // 2. Tìm khách hàng (BẮT BUỘC có .select('+Password') để đối chiếu mật khẩu cũ)
+        const client = await Client.findById(clientId).select('+Password');
+
+        if (!client) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy thông tin tài khoản khách hàng!'
+            });
+        }
+
+        // 3. Kiểm tra mã OTP (Ép kiểu String để tránh lỗi Postman gửi kiểu số)
+        if (client.Reset_OTP !== String(OTP)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Mã OTP không chính xác. Vui lòng kiểm tra lại!'
+            });
+        }
+
+        if (!client.Reset_OTP_Expiry || client.Reset_OTP_Expiry < new Date()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Mã OTP đã hết hạn. Vui lòng yêu cầu gửi lại mã mới!'
+            });
+        }
+
+        // 4. Kiểm tra mật khẩu cũ
+        const isMatch = await client.comparePassword(Old_Password);
+        if (!isMatch) {
+            return res.status(400).json({
+                success: false,
+                message: 'Mật khẩu hiện tại không chính xác!'
+            });
+        }
+
+        // 5. Cập nhật mật khẩu mới và dọn dẹp hiện trường OTP
+        client.Password = New_Password;
+        client.Reset_OTP = undefined;
+        client.Reset_OTP_Expiry = undefined;
+        
+        await client.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Đổi mật khẩu thành công! Tài khoản của bạn đã được bảo vệ an toàn.'
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Máy chủ gặp sự cố khi xử lý yêu cầu đổi mật khẩu',
+            error: error.message
+        });
+    }
+};

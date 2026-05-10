@@ -2,11 +2,13 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Cropper from "react-easy-crop";
 import {
     User, MapPin, Wallet, Lock, Camera,
-    Plus, Trash2, Edit2, CreditCard,
-    CheckCircle2, AlertCircle,
-    ArrowUpRight, ArrowDownLeft, Calendar, Mail, Phone, Settings, Check, X, ZoomIn, ZoomOut
+    Plus, Trash2, Edit2, CheckCircle2, AlertCircle,
+    Calendar, Mail, Phone, Settings, Check, X, ZoomIn, ZoomOut, KeyRound, ChevronLeft
 } from "lucide-react";
 
+// ==========================================
+// UTILS: XỬ LÝ CẮT ẢNH AVATAR
+// ==========================================
 const createImage = (url) =>
     new Promise((resolve, reject) => {
         const image = new Image();
@@ -39,6 +41,9 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
     });
 };
 
+// ==========================================
+// MODAL: CẮT ẢNH AVATAR
+// ==========================================
 const AvatarCropperModal = ({ isOpen, onClose, imageSrc, onUploadSuccess, showToast, userData }) => {
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
@@ -134,6 +139,9 @@ const AvatarCropperModal = ({ isOpen, onClose, imageSrc, onUploadSuccess, showTo
     );
 };
 
+// ==========================================
+// COMPONENT CHÍNH: LAYOUT HỒ SƠ
+// ==========================================
 export const ClientProfile = () => {
     const [activeTab, setActiveTab] = useState("PROFILE");
     const [toast, setToast] = useState(null);
@@ -216,11 +224,14 @@ export const ClientProfile = () => {
     );
 };
 
+// ==========================================
+// TAB 1: HỒ SƠ CÁ NHÂN
+// ==========================================
 const ProfileTab = ({ showToast }) => {
     const fileInputRef = useRef(null);
     const [userData, setUserData] = useState(null);
     const [isLoadingProfile, setIsLoadingProfile] = useState(true);
-    const [avatar, setAvatar] = useState(null); // 🔥 Khởi tạo null để hiện silhouette
+    const [avatar, setAvatar] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
     const [cropModalOpen, setCropModalOpen] = useState(false);
     const [tempImageSrc, setTempImageSrc] = useState(null);
@@ -231,7 +242,7 @@ const ProfileTab = ({ showToast }) => {
             try {
                 const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
                 const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
-                if (!token) throw new Error("Please login again!");
+                if (!token) throw new Error("Vui lòng đăng nhập lại!");
                 const response = await fetch(`${API_URL}/get-my-profile`, {
                     method: 'GET',
                     headers: { 'Authorization': `Bearer ${token}` }
@@ -260,7 +271,7 @@ const ProfileTab = ({ showToast }) => {
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        if (file.size > 2 * 1024 * 1024) return showToast("error", "Ảnh dưới 2MB sếp ơi!");
+        if (file.size > 2 * 1024 * 1024) return showToast("error", "Ảnh phải nhỏ hơn 2MB!");
         setTempImageSrc(URL.createObjectURL(file));
         setCropModalOpen(true);
         e.target.value = null;
@@ -272,7 +283,7 @@ const ProfileTab = ({ showToast }) => {
     };
 
     const handleSave = async () => {
-        if (!formData.name || !formData.email) return showToast("error", "Đừng bỏ trống tên và email sếp nhé!");
+        if (!formData.name || !formData.email) return showToast("error", "Tên và Email không được để trống!");
         setIsSaving(true);
         try {
             const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
@@ -304,7 +315,6 @@ const ProfileTab = ({ showToast }) => {
                     <div className="relative group cursor-pointer" onClick={() => fileInputRef.current.click()}>
                         <div className="absolute inset-0 bg-gradient-to-tr from-green-400 to-blue-400 rounded-full blur-[6px] opacity-40 group-hover:opacity-70 transition-opacity"></div>
                         <div className="w-32 h-32 rounded-full p-1 bg-gradient-to-tr from-green-400 to-blue-400 relative z-10">
-                            {/* 🔥 HIỂN THỊ ICON NẾU CHƯA CÓ ẢNH */}
                             <div className="w-full h-full rounded-full border-4 border-white bg-white overflow-hidden flex items-center justify-center">
                                 {avatar ? (
                                     <img src={avatar} className="w-full h-full object-cover" alt="Avatar" />
@@ -359,17 +369,214 @@ const ProfileTab = ({ showToast }) => {
     );
 };
 
-const AddressTab = () => (
-    <div className="animate-fade-in">
-        <h2 className="text-2xl font-black text-gray-900 mb-2">Sổ địa chỉ</h2>
-        <p className="text-gray-500 text-sm mb-10">Địa chỉ dọn dẹp thường dùng.</p>
-        <div className="p-8 border-2 border-dashed border-gray-200 rounded-[2rem] text-center">
-            <MapPin size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-400 font-bold">Chưa có địa chỉ nào được lưu</p>
-        </div>
-    </div>
-);
+// ==========================================
+// TAB 2: SỔ ĐỊA CHỈ (CÓ API THÊM ĐỊA CHỈ)
+// ==========================================
+const AddressTab = ({ showToast }) => {
+    const [addresses, setAddresses] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [newAddressDetail, setNewAddressDetail] = useState("");
+    const [isDefaultNew, setIsDefaultNew] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const fetchAddresses = async () => {
+        try {
+            const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
+            const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
+
+            if (!token) throw new Error("Phiên đăng nhập đã hết hạn!");
+
+            const response = await fetch(`${API_URL}/get-my-addresses`, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || "Không thể tải danh sách địa chỉ.");
+            }
+
+            setAddresses(result.data || []);
+        } catch (error) {
+            showToast("error", error.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchAddresses();
+    }, []);
+
+    const handleAddAddress = async (e) => {
+        e.preventDefault();
+        if (!newAddressDetail.trim()) return;
+
+        setIsSubmitting(true);
+        try {
+            const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
+            const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
+
+            const response = await fetch(`${API_URL}/add-address`, {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ Detail: newAddressDetail, Is_Default: isDefaultNew })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                showToast("success", result.message);
+                setAddresses(result.data);
+                setIsAddModalOpen(false);
+                setNewAddressDetail("");
+                setIsDefaultNew(false);
+            } else {
+                throw new Error(result.message || "Không thể thêm địa chỉ.");
+            }
+        } catch (error) {
+            showToast("error", error.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[300px] animate-fade-in">
+                <div className="w-10 h-10 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mb-4"></div>
+                <p className="text-gray-400 font-bold text-sm">Đang tải sổ địa chỉ...</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="animate-fade-in relative">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-8">
+                <div>
+                    <h2 className="text-2xl font-black text-gray-900 mb-2">Sổ địa chỉ</h2>
+                    <p className="text-gray-500 text-sm">Quản lý các địa chỉ dọn dẹp thường dùng của bạn.</p>
+                </div>
+                <button 
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="px-5 py-3.5 bg-green-50 text-green-700 hover:bg-green-600 hover:text-white font-bold rounded-2xl transition-all flex items-center gap-2 text-sm active:scale-95 shadow-sm"
+                >
+                    <Plus size={18} /> Thêm địa chỉ mới
+                </button>
+            </div>
+
+            {addresses.length === 0 ? (
+                <div className="p-12 border-2 border-dashed border-gray-200 bg-gray-50/50 rounded-[2rem] text-center flex flex-col items-center justify-center">
+                    <div className="w-20 h-20 bg-white shadow-sm rounded-full flex items-center justify-center mb-5">
+                        <MapPin size={32} className="text-gray-300" />
+                    </div>
+                    <p className="text-gray-900 font-black text-lg mb-1">Chưa có địa chỉ nào được lưu</p>
+                    <p className="text-gray-500 text-sm max-w-xs mx-auto">Thêm địa chỉ nhà hoặc nơi làm việc để đặt lịch dọn dẹp nhanh chóng hơn.</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {addresses.map((address) => (
+                        <div key={address._id} className="p-6 bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-green-200 rounded-[2rem] transition-all group relative overflow-hidden flex flex-col h-full">
+                            {address.Is_Default && (
+                                <span className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-bl-2xl shadow-sm z-10">
+                                    Mặc định
+                                </span>
+                            )}
+                            
+                            <div className="flex items-start gap-4 mb-6 flex-grow">
+                                <div className="p-3.5 bg-green-50 text-green-600 rounded-2xl shrink-0 group-hover:bg-green-600 group-hover:text-white transition-colors">
+                                    <MapPin size={22} />
+                                </div>
+                                <div className="flex-1 pr-6">
+                                    <h3 className="font-black text-gray-900 text-base mb-1">Địa chỉ lưu sẵn</h3>
+                                    <p className="text-sm font-medium text-gray-500 leading-relaxed line-clamp-3">
+                                        {address.Detail}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2 pt-4 border-t border-gray-50 mt-auto">
+                                <button className="flex-1 py-3 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-2">
+                                    <Edit2 size={14} /> Chỉnh sửa
+                                </button>
+                                <button className="flex-1 py-3 bg-red-50 hover:bg-red-500 hover:text-white text-red-500 font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-2">
+                                    <Trash2 size={14} /> Xóa
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {isAddModalOpen && (
+                <div className="fixed inset-0 z-[200] bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white w-full max-w-md rounded-[2rem] overflow-hidden shadow-2xl animate-fade-in-up">
+                        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <h3 className="font-black text-gray-900 text-lg">Thêm địa chỉ mới</h3>
+                            <button 
+                                onClick={() => setIsAddModalOpen(false)} 
+                                disabled={isSubmitting} 
+                                className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-200 rounded-full transition-all disabled:opacity-50"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleAddAddress} className="p-6">
+                            <div className="mb-5">
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest pl-1 mb-2">
+                                    Chi tiết địa chỉ <span className="text-red-500">*</span>
+                                </label>
+                                <textarea
+                                    required rows="4"
+                                    placeholder="Nhập số nhà, tên đường, phường/xã, quận/huyện, thành phố..."
+                                    className="w-full px-5 py-4 border border-gray-200 rounded-2xl focus:bg-gray-50 focus:border-green-600 focus:ring-2 focus:ring-green-600/20 outline-none text-sm font-bold transition-all resize-none"
+                                    value={newAddressDetail}
+                                    onChange={(e) => setNewAddressDetail(e.target.value)}
+                                    disabled={isSubmitting}
+                                ></textarea>
+                            </div>
+                            
+                            <label className="flex items-center gap-3 mb-8 cursor-pointer group">
+                                <div className="relative flex items-center justify-center w-6 h-6 shrink-0">
+                                    <input 
+                                        type="checkbox" 
+                                        className="peer appearance-none w-6 h-6 border-2 border-gray-300 rounded-lg checked:bg-green-600 checked:border-green-600 transition-all outline-none cursor-pointer"
+                                        checked={isDefaultNew}
+                                        onChange={(e) => setIsDefaultNew(e.target.checked)}
+                                        disabled={isSubmitting}
+                                    />
+                                    <Check size={14} className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" strokeWidth={3} />
+                                </div>
+                                <span className="text-sm font-bold text-gray-700 group-hover:text-gray-900 transition-colors">
+                                    Đặt làm địa chỉ mặc định
+                                </span>
+                            </label>
+
+                            <div className="flex gap-3">
+                                <button type="button" onClick={() => setIsAddModalOpen(false)} disabled={isSubmitting} className="flex-1 py-4 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all disabled:opacity-50">
+                                    Hủy bỏ
+                                </button>
+                                <button type="submit" disabled={isSubmitting || !newAddressDetail.trim()} className="flex-1 py-4 bg-green-600 text-white font-bold rounded-xl shadow-lg shadow-green-600/20 hover:bg-green-700 active:scale-95 transition-all flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
+                                    {isSubmitting ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : "Lưu địa chỉ"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ==========================================
+// TAB 3: VÍ
+// ==========================================
 const WalletTab = () => (
     <div className="animate-fade-in">
         <h2 className="text-2xl font-black text-gray-900 mb-2">Ví CleanAI iPay</h2>
@@ -383,16 +590,208 @@ const WalletTab = () => (
     </div>
 );
 
-const SecurityTab = () => (
-    <div className="animate-fade-in">
-        <h2 className="text-2xl font-black text-gray-900 mb-2">Bảo mật</h2>
-        <p className="text-gray-500 text-sm mb-10">Quản lý mật khẩu.</p>
-        <div className="bg-gray-50 p-8 rounded-[2rem] border border-gray-200">
-            <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-200">
-                <div className="p-3 bg-white rounded-xl shadow-sm"><Lock size={20} /></div>
-                <div><h3 className="font-black text-gray-900">Đổi mật khẩu</h3><p className="text-xs text-gray-500">Bảo vệ tài khoản tốt hơn</p></div>
+// ==========================================
+// TAB 4: BẢO MẬT (ĐỔI MẬT KHẨU)
+// ==========================================
+const SecurityTab = ({ showToast }) => {
+    const [step, setStep] = useState(1);
+    const [formData, setFormData] = useState({
+        oldPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+        otp: ""
+    });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [countdown, setCountdown] = useState(0);
+
+    useEffect(() => {
+        let timer;
+        if (countdown > 0) {
+            timer = setInterval(() => setCountdown(prev => prev - 1), 1000);
+        }
+        return () => clearInterval(timer);
+    }, [countdown]);
+
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleRequestOTP = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        
+        if (!formData.oldPassword || !formData.newPassword || !formData.confirmPassword) {
+            return showToast("error", "Vui lòng nhập đầy đủ thông tin mật khẩu!");
+        }
+        
+        if (formData.newPassword.length < 6) {
+            return showToast("error", "Mật khẩu mới phải có ít nhất 6 ký tự!");
+        }
+
+        if (formData.newPassword !== formData.confirmPassword) {
+            return showToast("error", "Mật khẩu xác nhận không khớp!");
+        }
+        
+        if (formData.oldPassword === formData.newPassword) {
+            return showToast("error", "Mật khẩu mới không được trùng mật khẩu cũ!");
+        }
+
+        setIsSubmitting(true);
+        try {
+            const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
+            const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
+
+            const response = await fetch(`${API_URL}/request-change-password-otp`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                showToast("success", result.message);
+                setStep(2);
+                setCountdown(300); 
+            } else {
+                throw new Error(result.message || "Không thể gửi mã OTP.");
+            }
+        } catch (error) {
+            showToast("error", error.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleChangePassword = async (e) => {
+        e.preventDefault();
+        if (!formData.otp) return showToast("error", "Vui lòng nhập mã OTP!");
+
+        setIsSubmitting(true);
+        try {
+            const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
+            const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
+
+            const response = await fetch(`${API_URL}/change-password`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    Old_Password: formData.oldPassword,
+                    New_Password: formData.newPassword,
+                    OTP: formData.otp
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                showToast("success", result.message);
+                setStep(1);
+                setFormData({ oldPassword: "", newPassword: "", confirmPassword: "", otp: "" });
+                setCountdown(0);
+            } else {
+                throw new Error(result.message || "Đổi mật khẩu thất bại.");
+            }
+        } catch (error) {
+            showToast("error", error.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="animate-fade-in max-w-xl">
+            <h2 className="text-2xl font-black text-gray-900 mb-2">Bảo mật</h2>
+            <p className="text-gray-500 text-sm mb-10">Quản lý mật khẩu và bảo vệ tài khoản.</p>
+            
+            <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-4 mb-8 pb-6 border-b border-gray-100">
+                    <div className="p-3 bg-green-50 text-green-600 rounded-xl"><Lock size={24} /></div>
+                    <div>
+                        <h3 className="font-black text-gray-900 text-lg">Đổi mật khẩu</h3>
+                        <p className="text-xs text-gray-500 font-medium mt-1">Nên đổi mật khẩu định kỳ 3-6 tháng/lần</p>
+                    </div>
+                </div>
+
+                {step === 1 ? (
+                    <form onSubmit={handleRequestOTP} className="space-y-6 animate-fade-in">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest pl-1 mb-2">Mật khẩu hiện tại</label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400"><Lock size={18} /></div>
+                                <input
+                                    required type="password" name="oldPassword" placeholder="Nhập mật khẩu hiện tại"
+                                    value={formData.oldPassword} onChange={handleChange} disabled={isSubmitting}
+                                    className="w-full pl-11 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:border-green-600 focus:ring-2 focus:ring-green-600/20 outline-none text-sm font-bold transition-all"
+                                />
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest pl-1 mb-2">Mật khẩu mới</label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400"><Lock size={18} /></div>
+                                <input
+                                    required type="password" name="newPassword" placeholder="Ít nhất 6 ký tự" minLength={6}
+                                    value={formData.newPassword} onChange={handleChange} disabled={isSubmitting}
+                                    className="w-full pl-11 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:border-green-600 focus:ring-2 focus:ring-green-600/20 outline-none text-sm font-bold transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest pl-1 mb-2">Xác nhận mật khẩu mới</label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400"><Lock size={18} /></div>
+                                <input
+                                    required type="password" name="confirmPassword" placeholder="Nhập lại mật khẩu mới" minLength={6}
+                                    value={formData.confirmPassword} onChange={handleChange} disabled={isSubmitting}
+                                    className="w-full pl-11 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:border-green-600 focus:ring-2 focus:ring-green-600/20 outline-none text-sm font-bold transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        <button 
+                            type="submit" disabled={isSubmitting} 
+                            className="w-full py-4 mt-2 bg-gray-900 text-white rounded-2xl font-black text-sm hover:bg-black active:scale-95 transition-all shadow-lg flex justify-center items-center gap-2 disabled:opacity-70"
+                        >
+                            {isSubmitting ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : "NHẬN MÃ OTP XÁC NHẬN"}
+                        </button>
+                    </form>
+                ) : (
+                    <form onSubmit={handleChangePassword} className="space-y-6 animate-slide-in-right">
+                        <button type="button" onClick={() => setStep(1)} className="inline-flex items-center text-xs font-bold text-gray-400 hover:text-green-600 mb-2 transition-colors">
+                            <ChevronLeft size={14} /> Quay lại
+                        </button>
+                        
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest pl-1 mb-2 flex justify-between items-center">
+                                Mã xác thực OTP
+                                <span className={countdown > 0 ? "text-orange-500" : "text-green-600 cursor-pointer hover:underline"} onClick={() => countdown === 0 && handleRequestOTP()}>
+                                    {countdown > 0 ? `Gửi lại sau ${Math.floor(countdown/60)}:${(countdown%60).toString().padStart(2, '0')}` : "Gửi lại mã"}
+                                </span>
+                            </label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400"><KeyRound size={18} /></div>
+                                <input
+                                    required type="text" name="otp" maxLength="6" placeholder="Nhập 6 số"
+                                    value={formData.otp} onChange={handleChange} disabled={isSubmitting}
+                                    className="w-full pl-11 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:border-green-600 focus:ring-2 focus:ring-green-600/20 outline-none text-xl font-black tracking-[0.5em] transition-all text-center"
+                                />
+                            </div>
+                            <p className="text-[11px] text-gray-400 font-medium mt-3 text-center">Mã OTP đã được gửi về số điện thoại đăng ký của bạn.</p>
+                        </div>
+
+                        <button 
+                            type="submit" disabled={isSubmitting || formData.otp.length < 6} 
+                            className="w-full py-4 mt-2 bg-green-600 text-white rounded-2xl font-black text-sm hover:bg-green-700 active:scale-95 transition-all shadow-lg shadow-green-600/20 flex justify-center items-center gap-2 disabled:opacity-70"
+                        >
+                            {isSubmitting ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : "XÁC NHẬN ĐỔI MẬT KHẨU"}
+                        </button>
+                    </form>
+                )}
             </div>
-            <button className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-sm">THỰC HIỆN ĐỔI MẬT KHẨU</button>
         </div>
-    </div>
-);
+    );
+};

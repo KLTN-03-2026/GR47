@@ -20,6 +20,7 @@ adminRouter.get('/get-config-history', AdminMiddleware.protect, AIConfigControll
 adminRouter.get('/dashboard-stats', AdminMiddleware.protect, StatisficsController.getDashboardStats);
 adminRouter.get('/get-all-pending-cleaners', AdminMiddleware.protect, CleanerController.getAllPendingCleaners);
 adminRouter.post('/approve-cleaner/:id', AdminMiddleware.protect, CleanerController.approveCleaner);
+adminRouter.post('/reject-cleaner/:id', AdminMiddleware.protect, CleanerController.rejectCleaner);
 adminRouter.post('/lock-and-unlock-cleaner/:id', AdminMiddleware.protect, CleanerController.lockAndUnlockCleaner);
 adminRouter.post('/lock-and-unlock-client/:id', AdminMiddleware.protect, ClientController.lockAndUnlockClient);
 adminRouter.get('/get-all-bookings', AdminMiddleware.protect, BookingController.getAllBookings)

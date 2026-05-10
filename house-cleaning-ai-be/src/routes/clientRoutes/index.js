@@ -24,4 +24,10 @@ clientRouter.post('/analyze-room-image', ClientMiddleware.protect, upload.single
 clientRouter.get('/get-my-profile', ClientMiddleware.protect, ClientController.getMyProfile);
 clientRouter.post('/update-avatar/:id', ClientMiddleware.protect, upload.single('avatar'), ClientController.updateAvatar);
 clientRouter.post('/update-profile', ClientMiddleware.protect, ClientController.updateProfile);
+clientRouter.post('/forget-password', ClientController.forgetPassword);
+clientRouter.post('/reset-password', ClientController.resetPassword);
+clientRouter.get('/get-my-addresses', ClientMiddleware.protect, ClientController.getMyAddresses);
+clientRouter.post('/add-address', ClientMiddleware.protect, ClientController.addAddress);
+clientRouter.post('/change-password', ClientMiddleware.protect, ClientController.changePassword);
+clientRouter.post('/request-change-password-otp', ClientMiddleware.protect, ClientController.requestChangePasswordOTP);
 export default clientRouter;
