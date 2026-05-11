@@ -10,14 +10,14 @@ import {
 } from "lucide-react";
 
 // ==========================================
-// 1. TỪ ĐIỂN MAPPING 
+// 1. TỪ ĐIỂN MAPPING (Đã update theo Backend của sếp)
 // ==========================================
 const BOOKING_STATUS_MAP = {
     "1": 'Waiting',
     "2": 'Accepted',
     "3": 'InProgress',
     "4": 'Completed',
-    "5": 'Cancelled'
+    "0": 'Cancelled' // Sếp set CANCELLED là 0
 };
 
 const PAYMENT_STATUS_MAP = {
@@ -31,6 +31,14 @@ const MESS_LEVEL_MAP = {
     3: 'Cao'
 };
 
+const CANCEL_REASONS = [
+    "Tôi muốn thay đổi lịch (ngày/giờ) dọn dẹp",
+    "Thợ nhận đơn quá chậm / Chờ quá lâu",
+    "Tôi bận việc đột xuất, không ở nhà",
+    "Tôi không còn nhu cầu dọn dẹp nữa",
+    "Lý do khác..."
+];
+
 export const ClientOrderDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -38,6 +46,14 @@ export const ClientOrderDetail = () => {
     const [order, setOrder] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // ==========================================
+    // STATE CHO TÍNH NĂNG HỦY ĐƠN
+    // ==========================================
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [selectedReason, setSelectedReason] = useState("");
+    const [customReason, setCustomReason] = useState("");
+    const [isCancelling, setIsCancelling] = useState(false);
 
     // Khởi tạo hiệu ứng AOS
     useEffect(() => {
@@ -97,7 +113,6 @@ export const ClientOrderDetail = () => {
                         } : null
                     });
 
-                    // Refresh AOS sau khi load data xong
                     setTimeout(() => AOS.refresh(), 100);
                 } else {
                     throw new Error(result.message || "Không thể tải dữ liệu đơn hàng.");
@@ -153,6 +168,50 @@ export const ClientOrderDetail = () => {
         const newMessage = { id: Date.now(), sender: "me", text: inputText, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
         setMessages([...messages, newMessage]);
         setInputText("");
+    };
+
+    // ==========================================
+    // 5. LOGIC HỦY ĐƠN HÀNG (Khớp Backend Sếp)
+    // ==========================================
+    const handleCancelOrder = async () => {
+        const finalReason = selectedReason === "Lý do khác..." ? customReason : selectedReason;
+        
+        if (!finalReason.trim()) {
+            alert("Vui lòng chọn hoặc nhập lý do hủy đơn sếp nhé!");
+            return;
+        }
+
+        setIsCancelling(true);
+        try {
+            const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
+            const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
+
+            const response = await fetch(`${API_URL}/cancel-booking/${id}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                // Gửi đúng field Cancel_Reason xuống BE
+                body: JSON.stringify({ Cancel_Reason: finalReason }) 
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                // Đổi trạng thái thành Cancelled ngay lập tức
+                setOrder(prev => ({ ...prev, status: 'Cancelled' }));
+                setIsCancelModalOpen(false);
+                setSelectedReason("");
+                setCustomReason("");
+            } else {
+                throw new Error(result.message || "Không thể hủy đơn hàng lúc này.");
+            }
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            setIsCancelling(false);
+        }
     };
 
     // ==========================================
@@ -315,6 +374,19 @@ export const ClientOrderDetail = () => {
                                 </div>
                             </div>
                         </div>
+
+                        {/* NÚT HỦY ĐƠN HÀNG (Chỉ hiện khi Waiting hoặc Accepted) */}
+                        {['Waiting', 'Accepted'].includes(order.status) && (
+                            <div data-aos="fade-up" data-aos-delay="150" className="mt-6">
+                                <button
+                                    onClick={() => setIsCancelModalOpen(true)}
+                                    className="w-full py-4 bg-red-50 text-red-600 font-black rounded-[2rem] border border-red-100 hover:bg-red-500 hover:text-white transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 shadow-sm"
+                                >
+                                    <X size={20} /> YÊU CẦU HỦY ĐƠN HÀNG
+                                </button>
+                            </div>
+                        )}
+
                     </div>
 
                     {/* CỘT PHẢI: Nhân viên & Chat */}
@@ -357,6 +429,68 @@ export const ClientOrderDetail = () => {
                     </div>
                 </div>
             </div>
+
+            {/* MODAL XÁC NHẬN HỦY ĐƠN BẰNG LIST BOX + TEXTAREA */}
+            {isCancelModalOpen && (
+                <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white w-full max-w-md rounded-[2rem] overflow-hidden shadow-2xl animate-fade-in-up border border-slate-200">
+                        <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-red-50/50">
+                            <h3 className="font-black text-red-600 text-lg flex items-center gap-2"><AlertTriangle size={20} /> Xác nhận hủy đơn</h3>
+                            <button onClick={() => setIsCancelModalOpen(false)} disabled={isCancelling} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded-full transition-all disabled:opacity-50">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6">
+                            <p className="text-sm font-medium text-slate-600 mb-4">Bạn có chắc chắn muốn hủy đơn dọn dẹp này không? Vui lòng chọn lý do để chúng tôi hỗ trợ tốt hơn.</p>
+                            
+                            <div className="space-y-3 mb-5">
+                                {CANCEL_REASONS.map((reason, idx) => (
+                                    <label key={idx} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors group">
+                                        <div className="relative flex items-center justify-center w-5 h-5 shrink-0">
+                                            <input 
+                                                type="radio" 
+                                                name="cancelReason"
+                                                value={reason}
+                                                checked={selectedReason === reason}
+                                                onChange={(e) => setSelectedReason(e.target.value)}
+                                                disabled={isCancelling}
+                                                className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-full checked:border-red-500 transition-all outline-none cursor-pointer"
+                                            />
+                                            <div className="absolute w-2.5 h-2.5 bg-red-500 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+                                        </div>
+                                        <span className={`text-sm font-bold transition-colors ${selectedReason === reason ? 'text-red-600' : 'text-slate-700'}`}>
+                                            {reason}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+
+                            {selectedReason === "Lý do khác..." && (
+                                <textarea
+                                    value={customReason}
+                                    onChange={(e) => setCustomReason(e.target.value)}
+                                    placeholder="Nhập chi tiết lý do hủy (bắt buộc)..."
+                                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 text-sm font-medium mb-6 min-h-[100px] resize-none animate-fade-in"
+                                    disabled={isCancelling}
+                                />
+                            )}
+
+                            <div className="flex gap-3 mt-6">
+                                <button onClick={() => setIsCancelModalOpen(false)} disabled={isCancelling} className="flex-1 py-3.5 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-all disabled:opacity-50">
+                                    Suy nghĩ lại
+                                </button>
+                                <button 
+                                    onClick={handleCancelOrder} 
+                                    disabled={isCancelling || !selectedReason || (selectedReason === "Lý do khác..." && !customReason.trim())} 
+                                    className="flex-1 py-3.5 bg-red-600 text-white font-bold rounded-xl shadow-lg shadow-red-600/20 hover:bg-red-700 active:scale-95 transition-all flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {isCancelling ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : "Xác nhận Hủy"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* MODAL CHAT */}
             {isChatOpen && (

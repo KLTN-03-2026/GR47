@@ -3,8 +3,17 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
     ChevronLeft, MapPin, Navigation, Play,
     CheckCircle2, PhoneCall, MessageSquare, Clock,
-    X, Send, AlertCircle, ShieldAlert
+    X, Send, AlertCircle, ShieldAlert, AlertTriangle
 } from "lucide-react";
+
+// TỪ ĐIỂN LÝ DO HỦY DÀNH CHO CLEANER
+const CANCEL_REASONS_CLEANER = [
+    "Xe bị hỏng / Sự cố giao thông",
+    "Có việc bận đột xuất / Sự cố cá nhân",
+    "Không liên lạc được với khách hàng",
+    "Khách hàng yêu cầu hủy đơn",
+    "Lý do khác..."
+];
 
 export const CleanerOrderProgress = () => {
     const { id } = useParams();
@@ -35,8 +44,14 @@ export const CleanerOrderProgress = () => {
 
     // STATE CHO MODAL & THÔNG BÁO CUSTOM
     const [confirmAction, setConfirmAction] = useState(null);
-    const [actionError, setActionError] = useState(""); // 🔥 STATE MỚI: Bắt lỗi ngay trong Modal
+    const [actionError, setActionError] = useState("");
     const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
+    // STATE CHO MODAL HỦY ĐƠN (CLEANER)
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [selectedReason, setSelectedReason] = useState("");
+    const [customReason, setCustomReason] = useState("");
+    const [isCancelling, setIsCancelling] = useState(false);
 
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [inputText, setInputText] = useState("");
@@ -110,10 +125,10 @@ export const CleanerOrderProgress = () => {
     }, [id]);
 
     // ==========================================
-    // 4. API GỌI CHECK-IN VÀ CHECK-OUT (Đã Fix Lỗi Ngáo)
+    // 4. API GỌI CHECK-IN VÀ CHECK-OUT
     // ==========================================
     const executeConfirmAction = async () => {
-        setActionError(""); // Reset lỗi cũ trước khi chạy
+        setActionError("");
         setIsUpdating(true);
         const targetUIStatus = confirmAction === 'start' ? 'IN_PROGRESS' : 'COMPLETED';
 
@@ -131,26 +146,65 @@ export const CleanerOrderProgress = () => {
 
             const result = await response.json();
 
-            // NẾU API BÁO LỖI -> QUĂNG LỖI NGAY LẬP TỨC
             if (!response.ok || !result.success) {
                 throw new Error(result.message || "Thao tác thất bại từ máy chủ.");
             }
 
-            // NẾU THÀNH CÔNG: Đóng Modal, đổi status, báo Toast
             setConfirmAction(null);
             setActionError("");
             setWorkStatus(targetUIStatus);
             showToast(result.message, "success");
 
-            // Nếu hoàn thành thì chờ 2s rồi về trang chủ
             if (targetUIStatus === "COMPLETED") {
                 setTimeout(() => navigate("/cleaner"), 2000);
             }
         } catch (err) {
-            // NẾU LỖI: Cập nhật biến actionError để hiện chữ đỏ TRONG MODAL, KHÔNG ĐÓNG MODAL
             setActionError(err.message);
         } finally {
             setIsUpdating(false);
+        }
+    };
+
+    // ==========================================
+    // 5. API CLEANER NHẢ ĐƠN
+    // ==========================================
+    const handleCancelOrder = async () => {
+        const finalReason = selectedReason === "Lý do khác..." ? customReason : selectedReason;
+
+        if (!finalReason.trim()) {
+            setActionError("Vui lòng chọn hoặc nhập lý do hủy đơn!");
+            return;
+        }
+
+        setIsCancelling(true);
+        setActionError("");
+        try {
+            const API_URL = import.meta.env.VITE_API_BASE_CLEANER_URL;
+            const token = localStorage.getItem("cleaner_token") || sessionStorage.getItem("cleaner_token");
+
+            const response = await fetch(`${API_URL}/cancel-booking/${id}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ Cancel_Reason: finalReason })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                showToast("Nhả đơn thành công!", "success");
+                setIsCancelModalOpen(false);
+                // Cleaner đã nhả đơn thì đá thẳng về trang chủ (Radar) để tìm đơn mới
+                setTimeout(() => navigate("/cleaner"), 1500);
+            } else {
+                throw new Error(result.message || "Không thể hủy đơn lúc này.");
+            }
+        } catch (error) {
+            setActionError(error.message);
+        } finally {
+            setIsCancelling(false);
         }
     };
 
@@ -183,7 +237,7 @@ export const CleanerOrderProgress = () => {
     return (
         <div className="min-h-screen bg-[#f4f7f6] flex flex-col font-sans relative overflow-hidden animate-fade-in">
 
-            {/* TOAST NOTIFICATION CHỈ HIỆN KHI THÀNH CÔNG */}
+            {/* TOAST NOTIFICATION */}
             {toast.show && (
                 <div className={`fixed top-20 left-1/2 -translate-x-1/2 z-[70] px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 animate-fade-in-down
                     ${toast.type === 'success' ? 'bg-white border-2 border-green-500 text-green-700' : 'bg-red-50 border-2 border-red-500 text-red-600'}`}>
@@ -209,7 +263,7 @@ export const CleanerOrderProgress = () => {
                 </div>
             </header>
 
-            <main className="flex-grow p-4 space-y-4 pb-32">
+            <main className="flex-grow p-4 space-y-4 pb-40">
                 <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
                     <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-50">
                         <div>
@@ -297,18 +351,25 @@ export const CleanerOrderProgress = () => {
             <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 p-4 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-30">
                 <div className="max-w-md mx-auto">
                     {workStatus === "MOVING" && (
-                        <button
-                            onClick={() => { setActionError(""); setConfirmAction('start'); }}
-                            // ĐÃ FIX: Dán trực tiếp dải class Tailwind vào đây
-                            className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-200"
-                        >
-                            <Play size={22} fill="currentColor" /> Bắt đầu dọn dẹp
-                        </button>
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={() => { setActionError(""); setConfirmAction('start'); }}
+                                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-200"
+                            >
+                                <Play size={22} fill="currentColor" /> Bắt đầu dọn dẹp
+                            </button>
+                            {/* NÚT NHẢ ĐƠN CHỈ HIỆN KHI ĐANG DI CHUYỂN */}
+                            <button
+                                onClick={() => { setActionError(""); setIsCancelModalOpen(true); }}
+                                className="w-full py-3 bg-red-50 text-red-600 rounded-2xl font-bold text-sm border border-red-100 hover:bg-red-100 transition-all active:scale-[0.98]"
+                            >
+                                Yêu cầu hủy / Nhả đơn này
+                            </button>
+                        </div>
                     )}
                     {workStatus === "IN_PROGRESS" && (
                         <button
                             onClick={() => { setActionError(""); setConfirmAction('complete'); }}
-                            // ĐÃ FIX: Dán trực tiếp dải class Tailwind vào đây
                             className="w-full py-4 bg-green-600 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-green-700 active:scale-[0.98] transition-all shadow-lg shadow-green-200"
                         >
                             <CheckCircle2 size={24} /> Hoàn thành công việc
@@ -322,7 +383,7 @@ export const CleanerOrderProgress = () => {
                 </div>
             </div>
 
-            {/* MODAL XÁC NHẬN CUSTOM */}
+            {/* MODAL XÁC NHẬN CUSTOM CHO CHECK-IN / CHECK-OUT */}
             {confirmAction && (
                 <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
                     <div className="bg-white rounded-[2rem] p-6 sm:p-8 w-full max-w-sm shadow-2xl animate-fade-in-up">
@@ -339,7 +400,6 @@ export const CleanerOrderProgress = () => {
                                 : "Hãy chắc chắn rằng bạn đã hoàn tất mọi công việc, bàn giao lại cho khách và sẵn sàng kết thúc đơn."}
                         </p>
 
-                        {/* 🔥 HIỆN LỖI NGAY TẠI MODAL KHÔNG CHO TẮT */}
                         {actionError && (
                             <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm font-bold flex items-center gap-2 animate-shake">
                                 <AlertCircle size={18} className="shrink-0" />
@@ -349,10 +409,7 @@ export const CleanerOrderProgress = () => {
 
                         <div className="flex gap-3">
                             <button
-                                onClick={() => {
-                                    setConfirmAction(null);
-                                    setActionError("");
-                                }}
+                                onClick={() => { setConfirmAction(null); setActionError(""); }}
                                 disabled={isUpdating}
                                 className="flex-1 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-200 active:scale-95 transition-all disabled:opacity-50"
                             >
@@ -368,6 +425,80 @@ export const CleanerOrderProgress = () => {
                                     <div className="h-5 w-5 mx-auto border-2 border-white border-t-transparent rounded-full animate-spin" />
                                 ) : "Đồng ý"}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL HỦY / NHẢ ĐƠN CỦA CLEANER */}
+            {isCancelModalOpen && (
+                <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white rounded-[2rem] w-full max-w-sm shadow-2xl animate-fade-in-up border border-slate-200 overflow-hidden">
+                        <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-red-50">
+                            <h3 className="font-black text-red-600 text-lg flex items-center gap-2">
+                                <AlertTriangle size={20} /> Xác nhận nhả đơn
+                            </h3>
+                            <button onClick={() => { setIsCancelModalOpen(false); setActionError(""); }} disabled={isCancelling} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-100 rounded-full transition-all">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6">
+                            <p className="text-sm font-medium text-slate-600 mb-4">
+                                Bạn chắc chắn muốn nhả đơn này? Lý do của bạn sẽ được hệ thống ghi nhận.
+                            </p>
+
+                            <div className="space-y-3 mb-5 max-h-[40vh] overflow-y-auto pr-1">
+                                {CANCEL_REASONS_CLEANER.map((reason, idx) => (
+                                    <label key={idx} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors group">
+                                        <div className="relative flex items-center justify-center w-5 h-5 shrink-0">
+                                            <input
+                                                type="radio" name="cleanerCancelReason" value={reason}
+                                                checked={selectedReason === reason}
+                                                onChange={(e) => { setSelectedReason(e.target.value); setActionError(""); }}
+                                                disabled={isCancelling}
+                                                className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-full checked:border-red-500 transition-all outline-none cursor-pointer"
+                                            />
+                                            <div className="absolute w-2.5 h-2.5 bg-red-500 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+                                        </div>
+                                        <span className={`text-sm font-bold transition-colors ${selectedReason === reason ? 'text-red-600' : 'text-slate-700'}`}>
+                                            {reason}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+
+                            {selectedReason === "Lý do khác..." && (
+                                <textarea
+                                    value={customReason}
+                                    onChange={(e) => { setCustomReason(e.target.value); setActionError(""); }}
+                                    placeholder="Nhập lý do cụ thể..."
+                                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 text-sm font-medium mb-5 min-h-[80px] resize-none animate-fade-in"
+                                    disabled={isCancelling}
+                                />
+                            )}
+
+                            {actionError && (
+                                <p className="mb-4 text-xs font-bold text-red-500 flex items-center gap-1 animate-shake">
+                                    <AlertCircle size={14} /> {actionError}
+                                </p>
+                            )}
+
+                            <div className="flex gap-3 mt-2">
+                                <button
+                                    onClick={() => { setIsCancelModalOpen(false); setActionError(""); }}
+                                    disabled={isCancelling}
+                                    className="flex-1 py-3.5 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-all disabled:opacity-50"
+                                >
+                                    Giữ lại đơn
+                                </button>
+                                <button
+                                    onClick={handleCancelOrder}
+                                    disabled={isCancelling || !selectedReason || (selectedReason === "Lý do khác..." && !customReason.trim())}
+                                    className="flex-1 py-3.5 bg-red-600 text-white font-bold rounded-xl shadow-lg shadow-red-600/20 hover:bg-red-700 active:scale-95 transition-all flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {isCancelling ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : "Nhả đơn"}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
