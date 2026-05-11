@@ -11,6 +11,12 @@ const CleanerSchema = new Schema(
         Phone_Number: { type: String, required: true, unique: true, trim: true, maxlength: 20 },
         Password: { type: String, required: true, minlength: 6, maxlength: 1024, select: false },
         Full_Name: { type: String, required: true, trim: true, maxlength: 100 },
+        Address: {
+            type: String,
+            trim: true,
+            maxlength: 255,
+            default: ""
+        },
         Identity_Card: { type: String, required: true, trim: true, maxlength: 255 },
         Selfie_Image: { type: String, required: true, trim: true, maxlength: 255 },
         Rating: { type: Number, required: true, default: 5.0, min: 0, max: 5 },

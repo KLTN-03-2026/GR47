@@ -78,9 +78,17 @@ export const CleanerHeader = () => {
                         <p className="text-sm font-bold text-gray-900">0đ</p>
                     </div>
                     <div className="text-right">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">Đánh giá</p>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">
+                            Đánh giá
+                        </p>
+
                         <p className="text-sm font-bold text-gray-900 flex items-center justify-end gap-1">
-                            5.0 <Star size={12} className="fill-yellow-400 text-yellow-400" />
+                            {cleanerInfo?.Rating?.toFixed(1) || "0.0"}
+
+                            <Star
+                                size={12}
+                                className="fill-yellow-400 text-yellow-400"
+                            />
                         </p>
                     </div>
                 </div>

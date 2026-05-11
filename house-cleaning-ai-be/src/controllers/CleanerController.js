@@ -232,6 +232,44 @@ export const checkAuth = async (req, res) => {
     }
 };
 
+export const updateProfile = async (req, res) => {
+    try {
+        const cleanerId = req.user.id;
+
+        const {
+            Full_Name,
+            Address
+        } = req.body;
+
+        const cleaner = await Cleaner.findById(cleanerId);
+
+        if (!cleaner) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy tài khoản cleaner'
+            });
+        }
+
+        cleaner.Full_Name = Full_Name || cleaner.Full_Name;
+        cleaner.Address = Address || cleaner.Address;
+
+        await cleaner.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Cập nhật hồ sơ thành công',
+            data: cleaner
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Lỗi cập nhật hồ sơ',
+            error: error.message
+        });
+    }
+};
+
 export const getAllPendingCleaners = async (req, res) => {
     try {
         const pendingCleaners = await Cleaner.find({

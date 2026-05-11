@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     ChevronLeft, Camera, Star, Award,
@@ -10,15 +10,58 @@ export const CleanerProfile = () => {
     const navigate = useNavigate();
 
     const [profileData, setProfileData] = useState({
-        name: "Lê Minh Tuấn",
-        phone: "0901234567",
-        address: "215 Lê Hồng Phong, Phường 4, Quận 5, TP.HCM",
-        avatar: "https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=200&auto=format&fit=crop",
-        rating: 4.9,
-        jobsCompleted: 128
+        name: "",
+        phone: "",
+        address: "",
+        avatar: "",
+        rating: 0,
+        jobsCompleted: 0
     });
 
     const [status, setStatus] = useState("idle"); // idle | loading | success | error
+    const [isLoading, setIsLoading] = useState(true);
+    useEffect(() => {
+        const fetchCleanerProfile = async () => {
+            try {
+                const token =
+                    localStorage.getItem("cleaner_token") ||
+                    sessionStorage.getItem("cleaner_token");
+
+                if (!token) return;
+
+                const API_URL = import.meta.env.VITE_API_BASE_CLEANER_URL;
+
+                const response = await fetch(`${API_URL}/check-auth`, {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    }
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    const cleaner = result.data;
+
+                    setProfileData({
+                        name: cleaner.Full_Name || "",
+                        phone: cleaner.Phone_Number || "",
+                        address: cleaner.Address || "",
+                        avatar: cleaner.Selfie_Image || "",
+                        rating: cleaner.Rating || 0,
+                        jobsCompleted: 128
+                    });
+                }
+            } catch (error) {
+                console.error("Lỗi lấy hồ sơ cleaner:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchCleanerProfile();
+    }, []);
     const [phoneError, setPhoneError] = useState(false);
 
     const handleChange = (e) => {
@@ -31,15 +74,66 @@ export const CleanerProfile = () => {
         setTimeout(() => setPhoneError(false), 3000);
     };
 
-    const handleSave = (e) => {
+    const handleSave = async (e) => {
         e.preventDefault();
-        setStatus("loading");
 
-        setTimeout(() => {
+        try {
+            setStatus("loading");
+
+            const token =
+                localStorage.getItem("cleaner_token") ||
+                sessionStorage.getItem("cleaner_token");
+
+            const API_URL = import.meta.env.VITE_API_BASE_CLEANER_URL;
+
+            const response = await fetch(`${API_URL}/update-profile`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    Full_Name: profileData.name,
+                    Address: profileData.address
+                })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message);
+            }
+
+            setProfileData((prev) => ({
+                ...prev,
+                name: result.data.Full_Name,
+                address: result.data.Address || ""
+            }));
+
             setStatus("success");
-            setTimeout(() => setStatus("idle"), 3000); // Ẩn thông báo sau 3s
-        }, 1500);
+
+            setTimeout(() => {
+                setStatus("idle");
+            }, 3000);
+
+        } catch (error) {
+            console.error(error);
+            setStatus("error");
+
+            setTimeout(() => {
+                setStatus("idle");
+            }, 3000);
+        }
     };
+
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#f4f7f6]">
+                <div className="h-10 w-10 border-4 border-green-200 border-t-green-600 rounded-full animate-spin" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#f4f7f6] font-sans pb-safe">
@@ -64,7 +158,7 @@ export const CleanerProfile = () => {
                     <div className="relative">
                         <div className="relative inline-block mt-4 mb-4">
                             <img
-                                src={profileData.avatar}
+                                src={profileData.avatar || "https://placehold.co/200x200?text=Avatar"}
                                 alt="Avatar"
                                 className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
                             />
@@ -80,7 +174,7 @@ export const CleanerProfile = () => {
                             <div className="flex flex-col items-center">
                                 <div className="flex items-center gap-1 text-orange-500 mb-1">
                                     <Star size={20} fill="currentColor" />
-                                    <span className="text-xl font-black">{profileData.rating}</span>
+                                    <span className="text-xl font-black">{profileData.rating?.toFixed(1) || "0.0"}</span>
                                 </div>
                                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Điểm uy tín</p>
                             </div>
@@ -166,12 +260,37 @@ export const CleanerProfile = () => {
                         <button
                             type="submit"
                             disabled={status === "loading"}
-                            className="btn-primary-green-lg"
+                            className={`
+        w-full h-14 rounded-2xl
+        flex items-center justify-center gap-2
+        font-black text-sm tracking-wide
+        transition-all duration-300
+        shadow-lg
+        active:scale-[0.98]
+
+        ${status === "loading"
+                                    ? "bg-green-400 text-white cursor-not-allowed"
+                                    : status === "success"
+                                        ? "bg-emerald-500 text-white"
+                                        : "bg-green-600 hover:bg-green-700 text-white hover:shadow-green-200"
+                                }
+    `}
                         >
                             {status === "loading" ? (
-                                <div className="h-6 w-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <>
+                                    <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <span>Đang lưu...</span>
+                                </>
+                            ) : status === "success" ? (
+                                <>
+                                    <CheckCircle2 size={20} />
+                                    <span>Đã lưu thành công</span>
+                                </>
                             ) : (
-                                <>Lưu thông tin <Save size={20} /></>
+                                <>
+                                    <Save size={20} />
+                                    <span>Lưu thay đổi</span>
+                                </>
                             )}
                         </button>
 
@@ -180,4 +299,5 @@ export const CleanerProfile = () => {
             </main>
         </div>
     );
+
 };

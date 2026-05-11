@@ -14,6 +14,11 @@ const cleanerRouter = express.Router();
 
 cleanerRouter.post('/login', CleanerController.login);
 cleanerRouter.get('/check-auth', CleanerMiddleware.protect, CleanerController.checkAuth);
+cleanerRouter.put(
+    '/update-profile',
+    CleanerMiddleware.protect,
+    CleanerController.updateProfile
+);
 cleanerRouter.post(
     '/register',
     upload.fields([
@@ -28,4 +33,5 @@ cleanerRouter.post('/accept-booking/:id', CleanerMiddleware.protect, BookingCont
 cleanerRouter.get('/get-booking-detail/:id', CleanerMiddleware.protect, BookingController.getBookingDetailForCleaner);
 cleanerRouter.get('/get-booking-in-progress', CleanerMiddleware.protect, BookingController.getInProgressBookingsForCleaner);
 cleanerRouter.post('/check-in-and-check-out/:id', CleanerMiddleware.protect, BookingController.checkInAndCheckOut);
+
 export default cleanerRouter;
