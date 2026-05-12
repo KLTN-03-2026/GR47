@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Client from '../models/ClientModel.js';
 import Cleaner from '../models/CleanerModel.js';
 import WalletTransaction from '../models/WalletTransactionModel.js';
+import { createNotification } from '../services/notificationService.js';
 
 const MIN_TX = 10_000;
 const MAX_TX = 100_000_000;
@@ -65,6 +66,14 @@ export const depositClientWallet = async (req, res) => {
                 ],
                 { session }
             );
+            await createNotification({
+                userType: 'client',
+                userId: client._id,
+                title: 'Nạp tiền thành công',
+                message: `Bạn đã nạp ${amount.toLocaleString('vi-VN')}đ vào ví CleanAI iPay.`,
+                type: 'WALLET',
+                session
+            });
         });
         const updated = await Client.findById(req.user.id).select('IPay_Balance Full_Name');
         return res.status(200).json({
@@ -112,6 +121,14 @@ export const withdrawClientWallet = async (req, res) => {
                 ],
                 { session }
             );
+            await createNotification({
+                userType: 'client',
+                userId: client._id,
+                title: 'Rút tiền thành công',
+                message: `Bạn đã rút ${amount.toLocaleString('vi-VN')}đ từ ví CleanAI iPay.`,
+                type: 'WALLET',
+                session
+            });
         });
         const updated = await Client.findById(req.user.id).select('IPay_Balance Full_Name');
         return res.status(200).json({
@@ -221,6 +238,14 @@ export const withdrawCleanerWallet = async (req, res) => {
                 ],
                 { session }
             );
+            await createNotification({
+                userType: 'cleaner',
+                userId: cleaner._id,
+                title: 'Rút tiền thành công',
+                message: `Bạn đã rút ${amount.toLocaleString('vi-VN')}đ từ ví thu nhập.`,
+                type: 'WALLET',
+                session
+            });
         });
         const updated = await Cleaner.findById(req.user.id).select('Wallet_Balance Full_Name');
         return res.status(200).json({

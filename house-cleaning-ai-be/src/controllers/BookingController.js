@@ -6,6 +6,7 @@ import Client from '../models/ClientModel.js';
 import Cleaner from '../models/CleanerModel.js';
 import { creditCleanerForCompletedBooking } from '../services/walletSettlement.js';
 import WalletTransaction from '../models/WalletTransactionModel.js';
+import { createNotification } from '../services/notificationService.js';
 
 const isIPayMethod = (paymentStatus) =>
     Number(paymentStatus) === Number(PAYMENT_STATUS.PAID); // FE đang dùng "2" = iPay
@@ -75,6 +76,16 @@ async function refundClientForBooking({ booking, session }) {
         Description: `Hoàn tiền đơn #${String(booking._id).slice(-6).toUpperCase()} (iPay)`,
         Related_Booking_Id: booking._id
     }], { session });
+
+    await createNotification({
+        userType: 'client',
+        userId: booking.Client_Id,
+        title: 'Đã hoàn tiền',
+        message: `Bạn đã được hoàn ${amount.toLocaleString('vi-VN')}đ cho đơn #${String(booking._id).slice(-6).toUpperCase()}.`,
+        type: 'WALLET',
+        relatedBookingId: booking._id,
+        session
+    });
 
     booking.Refund_Settled = true;
     await booking.save({ session });
@@ -164,6 +175,16 @@ export const createBooking = async (req, res) => {
                 Price
             }], { session });
 
+            await createNotification({
+                userType: 'client',
+                userId: Client_Id,
+                title: 'Đặt đơn thành công',
+                message: `Đơn #${String(bookingDoc._id).slice(-6).toUpperCase()} đã được tạo. Hệ thống đang tìm cleaner phù hợp.`,
+                type: 'BOOKING',
+                relatedBookingId: bookingDoc._id,
+                session
+            });
+
             if (isIPay) {
                 await WalletTransaction.create([{
                     User_Type: 'client',
@@ -231,6 +252,28 @@ export const cancelBookingByClient = async (req, res) => {
             if (reason) booking.Cancel_Reason = reason.slice(0, 500);
             await booking.save({ session });
 
+            await createNotification({
+                userType: 'client',
+                userId: booking.Client_Id,
+                title: 'Đơn đã bị hủy',
+                message: `Đơn #${String(booking._id).slice(-6).toUpperCase()} đã được hủy theo yêu cầu của bạn.`,
+                type: 'BOOKING',
+                relatedBookingId: booking._id,
+                session
+            });
+
+            if (booking.Cleaner_Id) {
+                await createNotification({
+                    userType: 'cleaner',
+                    userId: booking.Cleaner_Id,
+                    title: 'Đơn đã bị hủy',
+                    message: `Khách hàng đã hủy đơn #${String(booking._id).slice(-6).toUpperCase()}.`,
+                    type: 'BOOKING',
+                    relatedBookingId: booking._id,
+                    session
+                });
+            }
+
             const ref = await refundClientForBooking({ booking, session });
             refunded = ref.refunded;
             refundAmount = ref.amount || 0;
@@ -292,6 +335,26 @@ export const cancelBookingByCleaner = async (req, res) => {
             booking.Booking_Status = BOOKING_STATUS.CANCELLED;
             if (reason) booking.Cancel_Reason = reason.slice(0, 500);
             await booking.save({ session });
+
+            await createNotification({
+                userType: 'client',
+                userId: booking.Client_Id,
+                title: 'Đơn đã bị hủy',
+                message: `Cleaner đã hủy đơn #${String(booking._id).slice(-6).toUpperCase()}.`,
+                type: 'BOOKING',
+                relatedBookingId: booking._id,
+                session
+            });
+
+            await createNotification({
+                userType: 'cleaner',
+                userId: booking.Cleaner_Id,
+                title: 'Bạn đã hủy đơn',
+                message: `Bạn đã hủy đơn #${String(booking._id).slice(-6).toUpperCase()}.`,
+                type: 'BOOKING',
+                relatedBookingId: booking._id,
+                session
+            });
 
             const ref = await refundClientForBooking({ booking, session });
             refunded = ref.refunded;
@@ -530,6 +593,25 @@ export const acceptBooking = async (req, res) => {
             });
         }
 
+        await Promise.all([
+            createNotification({
+                userType: 'client',
+                userId: updatedBooking.Client_Id,
+                title: 'Đã có cleaner nhận đơn',
+                message: `Đơn #${String(updatedBooking._id).slice(-6).toUpperCase()} đã có người dọn nhận việc.`,
+                type: 'BOOKING',
+                relatedBookingId: updatedBooking._id
+            }),
+            createNotification({
+                userType: 'cleaner',
+                userId: cleanerId,
+                title: 'Nhận đơn thành công',
+                message: `Bạn đã nhận đơn #${String(updatedBooking._id).slice(-6).toUpperCase()}. Hãy chuẩn bị đến địa điểm làm việc.`,
+                type: 'BOOKING',
+                relatedBookingId: updatedBooking._id
+            })
+        ]);
+
         return res.status(200).json({
             success: true,
             message: "Xác nhận nhận đơn thành công! Hãy chuẩn bị đồ nghề nhé.",
@@ -709,6 +791,48 @@ export const checkInAndCheckOut = async (req, res) => {
 
         booking.Booking_Status = newStatus;
         await booking.save();
+
+        if (Number(newStatus) === Number(BOOKING_STATUS.IN_PROGRESS)) {
+            await Promise.all([
+                createNotification({
+                    userType: 'client',
+                    userId: booking.Client_Id,
+                    title: 'Cleaner bắt đầu làm việc',
+                    message: `Cleaner đã bắt đầu dọn dẹp đơn #${String(booking._id).slice(-6).toUpperCase()}.`,
+                    type: 'BOOKING',
+                    relatedBookingId: booking._id
+                }),
+                createNotification({
+                    userType: 'cleaner',
+                    userId: cleanerId,
+                    title: 'Bạn đã bắt đầu công việc',
+                    message: `Bạn đã check-in đơn #${String(booking._id).slice(-6).toUpperCase()}.`,
+                    type: 'BOOKING',
+                    relatedBookingId: booking._id
+                })
+            ]);
+        }
+
+        if (Number(newStatus) === Number(BOOKING_STATUS.COMPLETED)) {
+            await Promise.all([
+                createNotification({
+                    userType: 'client',
+                    userId: booking.Client_Id,
+                    title: 'Cleaner đã hoàn thành công việc',
+                    message: `Đơn #${String(booking._id).slice(-6).toUpperCase()} đã hoàn thành. Bạn có thể đánh giá trải nghiệm.`,
+                    type: 'BOOKING',
+                    relatedBookingId: booking._id
+                }),
+                createNotification({
+                    userType: 'cleaner',
+                    userId: cleanerId,
+                    title: 'Hoàn thành công việc',
+                    message: `Bạn đã check-out đơn #${String(booking._id).slice(-6).toUpperCase()}. Thu nhập sẽ được ghi nhận vào ví.`,
+                    type: 'BOOKING',
+                    relatedBookingId: booking._id
+                })
+            ]);
+        }
 
         if (Number(newStatus) === Number(BOOKING_STATUS.COMPLETED)) {
             try {

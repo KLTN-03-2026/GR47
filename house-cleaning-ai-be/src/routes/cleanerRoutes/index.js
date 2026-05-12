@@ -4,6 +4,8 @@ import * as CleanerController from '../../controllers/CleanerController.js';
 import * as BookingController from '../../controllers/BookingController.js';
 import * as RatingController from '../../controllers/RatingController.js';
 import * as WalletController from '../../controllers/WalletController.js';
+import * as NotificationController from '../../controllers/NotificationController.js';
+import * as ComplaintController from '../../controllers/ComplaintController.js';
 
 import * as CleanerMiddleware from '../../middlewares/CleanerMiddleware.js';
 
@@ -39,6 +41,10 @@ cleanerRouter.post('/cancel-booking/:id', CleanerMiddleware.protect, BookingCont
 
 cleanerRouter.get('/get-rating/:bookingId', CleanerMiddleware.protect, RatingController.getRatingForCleaner);
 cleanerRouter.patch('/reply-rating/:bookingId', CleanerMiddleware.protect, RatingController.replyToBookingRating);
+cleanerRouter.get('/complaints/booking/:bookingId', CleanerMiddleware.protect, ComplaintController.getCleanerComplaintByBooking);
+cleanerRouter.get('/notifications', CleanerMiddleware.protect, NotificationController.getMyNotifications);
+cleanerRouter.patch('/notifications/read-all', CleanerMiddleware.protect, NotificationController.markAllNotificationsRead);
+cleanerRouter.patch('/notifications/:id/read', CleanerMiddleware.protect, NotificationController.markNotificationRead);
 
 cleanerRouter.get('/earning-wallet', CleanerMiddleware.protect, WalletController.getCleanerWallet);
 cleanerRouter.post('/earning-withdraw', CleanerMiddleware.protect, WalletController.withdrawCleanerWallet);

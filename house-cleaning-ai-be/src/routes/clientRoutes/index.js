@@ -7,6 +7,7 @@ import * as BookingController from '../../controllers/BookingController.js';
 import * as RatingController from '../../controllers/RatingController.js';
 import * as WalletController from '../../controllers/WalletController.js';
 import * as ComplaintController from '../../controllers/ComplaintController.js';
+import * as NotificationController from '../../controllers/NotificationController.js';
 
 const clientRouter = express.Router();
 
@@ -34,6 +35,9 @@ clientRouter.get('/get-my-addresses', ClientMiddleware.protect, ClientController
 clientRouter.post('/add-address', ClientMiddleware.protect, ClientController.addAddress);
 clientRouter.post('/change-password', ClientMiddleware.protect, ClientController.changePassword);
 clientRouter.post('/request-change-password-otp', ClientMiddleware.protect, ClientController.requestChangePasswordOTP);
+clientRouter.get('/notifications', ClientMiddleware.protect, NotificationController.getMyNotifications);
+clientRouter.patch('/notifications/read-all', ClientMiddleware.protect, NotificationController.markAllNotificationsRead);
+clientRouter.patch('/notifications/:id/read', ClientMiddleware.protect, NotificationController.markNotificationRead);
 
 // Rating Routes
 clientRouter.post('/create-rating/:bookingId', ClientMiddleware.protect, RatingController.createRating);

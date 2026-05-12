@@ -3,6 +3,7 @@ import Booking from '../models/BookingModel.js';
 import Cleaner from '../models/CleanerModel.js';
 import WalletTransaction from '../models/WalletTransactionModel.js';
 import { BOOKING_STATUS } from '../utils/statusUtils.js';
+import { createNotification } from './notificationService.js';
 
 /** Tỷ lệ thu nhập cleaner nhận khi đơn hoàn thành (sau phí nền tảng ẩn định) */
 const CLEANER_INCOME_RATE = 0.9;
@@ -52,6 +53,15 @@ export async function creditCleanerForCompletedBooking(bookingId) {
                     ],
                     { session }
                 );
+                await createNotification({
+                    userType: 'cleaner',
+                    userId: booking.Cleaner_Id,
+                    title: 'Thu nhập đã được ghi nhận',
+                    message: `Bạn nhận ${income.toLocaleString('vi-VN')}đ từ đơn #${String(booking._id).slice(-6).toUpperCase()}.`,
+                    type: 'WALLET',
+                    relatedBookingId: booking._id,
+                    session
+                });
             }
 
             booking.Earnings_Settled = true;

@@ -3,6 +3,7 @@ import Booking from '../models/BookingModel.js';
 import BookingRating from '../models/BookingRatingModel.js';
 import BookingComplaint from '../models/BookingComplaintModel.js';
 import { BOOKING_STATUS } from '../utils/statusUtils.js';
+import { createNotification } from '../services/notificationService.js';
 
 const isCompleted = (status) => Number(status) === Number(BOOKING_STATUS.COMPLETED);
 
@@ -84,6 +85,25 @@ export const createCleanerComplaint = async (req, res) => {
 
         const populated = await BookingComplaint.findById(complaint._id).populate(complaintPopulate);
 
+        await Promise.all([
+            createNotification({
+                userType: 'client',
+                userId: clientId,
+                title: 'Khiếu nại đã được gửi',
+                message: `Khiếu nại cho đơn #${String(bookingId).slice(-6).toUpperCase()} đã được ghi nhận.`,
+                type: 'COMPLAINT',
+                relatedBookingId: bookingId
+            }),
+            createNotification({
+                userType: 'cleaner',
+                userId: booking.Cleaner_Id._id,
+                title: 'Bạn có khiếu nại mới',
+                message: `Khách hàng đã gửi khiếu nại cho đơn #${String(bookingId).slice(-6).toUpperCase()}.`,
+                type: 'COMPLAINT',
+                relatedBookingId: bookingId
+            })
+        ]);
+
         return res.status(201).json({
             success: true,
             message: 'Đã gửi khiếu nại. Admin sẽ kiểm tra và phản hồi sớm.',
@@ -115,6 +135,46 @@ export const getMyComplaintByBooking = async (req, res) => {
     } catch (error) {
         console.error('getMyComplaintByBooking:', error);
         return res.status(500).json({ success: false, message: 'Lỗi server khi lấy khiếu nại', error: error.message });
+    }
+};
+
+export const getCleanerComplaintByBooking = async (req, res) => {
+    try {
+        const { bookingId } = req.params;
+        const cleanerId = req.user?.id;
+
+        if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Mã đơn hàng không hợp lệ'
+            });
+        }
+
+        const complaint = await BookingComplaint.findOne({
+            Booking_Id: bookingId,
+            Cleaner_Id: cleanerId
+        }).populate(complaintPopulate);
+
+        if (!complaint) {
+            return res.status(404).json({
+                success: false,
+                message: 'Chưa có khiếu nại cho đơn hàng này'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: complaint
+        });
+
+    } catch (error) {
+        console.error('getCleanerComplaintByBooking:', error);
+
+        return res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi lấy khiếu nại',
+            error: error.message
+        });
     }
 };
 
@@ -183,6 +243,14 @@ export const resolveComplaint = async (req, res) => {
         }
 
         const populated = await BookingComplaint.findById(id).populate(complaintPopulate);
+        await createNotification({
+            userType: 'client',
+            userId: complaint.Client_Id,
+            title: complaint.Status === 'REJECTED' ? 'Khiếu nại đã bị từ chối' : 'Khiếu nại đã được xử lý',
+            message: `Khiếu nại cho đơn #${String(complaint.Booking_Id).slice(-6).toUpperCase()} đã được admin cập nhật.`,
+            type: 'COMPLAINT',
+            relatedBookingId: complaint.Booking_Id
+        });
         return res.status(200).json({ success: true, message: 'Đã cập nhật khiếu nại', data: populated });
     } catch (error) {
         console.error('resolveComplaint:', error);
