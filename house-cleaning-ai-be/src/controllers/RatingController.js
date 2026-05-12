@@ -1,10 +1,39 @@
 import mongoose from 'mongoose';
 import BookingRating from '../models/BookingRatingModel.js';
 import Booking from '../models/BookingModel.js';
+import Cleaner from '../models/CleanerModel.js';
 import { BOOKING_STATUS } from '../utils/statusUtils.js';
 
 const isBookingCompleted = (status) =>
     String(status) === String(BOOKING_STATUS.COMPLETED) || Number(status) === BOOKING_STATUS.COMPLETED;
+
+// ==========================================
+// HÀM HELPER: CẬP NHẬT RATING TRUNG BÌNH CỦA CLEANER
+// ==========================================
+const updateCleanerRating = async (cleanerId) => {
+    try {
+        // Tính trung bình rating từ tất cả booking ratings của cleaner
+        const avgRatingData = await BookingRating.aggregate([
+            { $match: { Cleaner_Id: new mongoose.Types.ObjectId(cleanerId) } },
+            { $group: { _id: null, avgStars: { $avg: '$Stars' } } }
+        ]);
+
+        const averageRating = avgRatingData[0]?.avgStars || 5.0; // Mặc định 5.0 nếu chưa có rating nào
+
+        // Cập nhật Rating field trong Cleaner document
+        await Cleaner.findByIdAndUpdate(
+            cleanerId,
+            { Rating: averageRating },
+            { new: true }
+        );
+
+        console.log(`✅ Updated cleaner ${cleanerId} rating to ${averageRating}`);
+        return averageRating;
+    } catch (error) {
+        console.error(`❌ Error updating cleaner rating for ${cleanerId}:`, error);
+        throw error;
+    }
+};
 
 // ==========================================
 // 1. TẠO RATING MỚI
@@ -87,6 +116,9 @@ export const createRating = async (req, res) => {
 
         // Cập nhật Booking với Rating_Id
         await Booking.findByIdAndUpdate(bookingId, { Rating_Id: newRating._id });
+
+        // Cập nhật rating trung bình của cleaner
+        await updateCleanerRating(booking.Cleaner_Id._id);
 
         console.log("✅ Rating created successfully:", newRating._id);
 
@@ -211,6 +243,9 @@ export const updateRating = async (req, res) => {
         rating.Last_Updated = new Date();
         await rating.save();
 
+        // Cập nhật rating trung bình của cleaner
+        await updateCleanerRating(rating.Cleaner_Id);
+
         return res.status(200).json({
             success: true,
             message: "Cập nhật đánh giá thành công",
@@ -277,6 +312,9 @@ export const deleteRating = async (req, res) => {
             { Rating_Id: ratingId },
             { Rating_Id: null }
         );
+
+        // Cập nhật rating trung bình của cleaner
+        await updateCleanerRating(rating.Cleaner_Id);
 
         return res.status(200).json({
             success: true,

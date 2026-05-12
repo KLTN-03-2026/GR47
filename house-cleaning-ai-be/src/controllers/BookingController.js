@@ -20,6 +20,32 @@ const refundableStatusForCleaner = (bookingStatus) => {
     return s === Number(BOOKING_STATUS.ACCEPTED); // cleaner chỉ hủy khi đang di chuyển
 };
 
+// ==========================================
+// HÀM HELPER: CẬP NHẬT SỐ ĐƠNHÀNG ĐÃ HOÀN THÀNH CỦA CLEANER
+// ==========================================
+const updateCleanerCompletedCount = async (cleanerId) => {
+    try {
+        // Đếm tổng số booking đã hoàn thành (Booking_Status = "4")
+        const completedCount = await Booking.countDocuments({
+            Cleaner_Id: cleanerId,
+            Booking_Status: String(BOOKING_STATUS.COMPLETED)
+        });
+
+        // Cập nhật Completed_Bookings_Count trong Cleaner document
+        await Cleaner.findByIdAndUpdate(
+            cleanerId,
+            { Completed_Bookings_Count: completedCount },
+            { new: true }
+        );
+
+        console.log(`✅ Updated cleaner ${cleanerId} completed bookings count to ${completedCount}`);
+        return completedCount;
+    } catch (error) {
+        console.error(`❌ Error updating completed bookings count for ${cleanerId}:`, error);
+        throw error;
+    }
+};
+
 async function refundClientForBooking({ booking, session }) {
     if (!booking) return { refunded: false };
     if (!isIPayMethod(booking.Payment_Status)) return { refunded: false };
@@ -208,6 +234,11 @@ export const cancelBookingByClient = async (req, res) => {
             const ref = await refundClientForBooking({ booking, session });
             refunded = ref.refunded;
             refundAmount = ref.amount || 0;
+
+            // Cập nhật lại số đơn hoàn thành của cleaner nếu booking có cleaner gán
+            if (booking.Cleaner_Id) {
+                await updateCleanerCompletedCount(booking.Cleaner_Id);
+            }
         });
 
         return res.status(200).json({
@@ -265,6 +296,9 @@ export const cancelBookingByCleaner = async (req, res) => {
             const ref = await refundClientForBooking({ booking, session });
             refunded = ref.refunded;
             refundAmount = ref.amount || 0;
+
+            // Cập nhật lại số đơn hoàn thành của cleaner
+            await updateCleanerCompletedCount(booking.Cleaner_Id);
         });
 
         return res.status(200).json({
@@ -679,6 +713,8 @@ export const checkInAndCheckOut = async (req, res) => {
         if (Number(newStatus) === Number(BOOKING_STATUS.COMPLETED)) {
             try {
                 await creditCleanerForCompletedBooking(booking._id);
+                // Cập nhật số đơn hàng đã hoàn thành của cleaner
+                await updateCleanerCompletedCount(booking.Cleaner_Id);
             } catch (settleErr) {
                 console.error('❌ Ghi nhận thu nhập cleaner:', settleErr);
             }

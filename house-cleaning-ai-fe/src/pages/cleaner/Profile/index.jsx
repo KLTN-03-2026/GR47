@@ -50,7 +50,7 @@ export const CleanerProfile = () => {
                         address: cleaner.Address || "",
                         avatar: cleaner.Selfie_Image || "",
                         rating: cleaner.Rating || 0,
-                        jobsCompleted: 128
+                        jobsCompleted: cleaner.Completed_Bookings_Count || 0
                     });
                 }
             } catch (error) {
