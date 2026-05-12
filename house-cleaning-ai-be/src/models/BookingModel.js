@@ -38,6 +38,11 @@ const bookingSchema = new mongoose.Schema({
         type: String,
         trim: true,
         default: ""
+    },
+    Rating_Id: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'BookingRating',
+        default: null
     }
 }, {
     timestamps: true

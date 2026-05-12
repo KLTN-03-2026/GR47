@@ -3,8 +3,9 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
     ChevronLeft, MapPin, Navigation, Play,
     CheckCircle2, PhoneCall, MessageSquare, Clock,
-    X, Send, AlertCircle, ShieldAlert, AlertTriangle
+    X, Send, AlertCircle, ShieldAlert, AlertTriangle, Star
 } from "lucide-react";
+import { RatingDisplay } from "../../client/OrderDetail/components/RatingDisplay";
 
 // TỪ ĐIỂN LÝ DO HỦY DÀNH CHO CLEANER
 const CANCEL_REASONS_CLEANER = [
@@ -52,6 +53,9 @@ export const CleanerOrderProgress = () => {
     const [selectedReason, setSelectedReason] = useState("");
     const [customReason, setCustomReason] = useState("");
     const [isCancelling, setIsCancelling] = useState(false);
+
+    const [rating, setRating] = useState(null);
+    const [isLoadingRating, setIsLoadingRating] = useState(false);
 
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [inputText, setInputText] = useState("");
@@ -123,6 +127,33 @@ export const CleanerOrderProgress = () => {
 
         if (id) syncOrderData();
     }, [id]);
+
+    useEffect(() => {
+        if (workStatus !== "COMPLETED" || !id) return;
+
+        const fetchRating = async () => {
+            setIsLoadingRating(true);
+            try {
+                const API_URL = import.meta.env.VITE_API_BASE_CLEANER_URL;
+                const token = localStorage.getItem("cleaner_token") || sessionStorage.getItem("cleaner_token");
+                const response = await fetch(`${API_URL}/get-rating/${id}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const result = await response.json();
+                if (response.ok && result.success) {
+                    setRating(result.data);
+                } else {
+                    setRating(null);
+                }
+            } catch {
+                setRating(null);
+            } finally {
+                setIsLoadingRating(false);
+            }
+        };
+
+        fetchRating();
+    }, [workStatus, id]);
 
     // ==========================================
     // 4. API GỌI CHECK-IN VÀ CHECK-OUT
@@ -345,6 +376,30 @@ export const CleanerOrderProgress = () => {
                         </div>
                     </div>
                 </div>
+
+                {workStatus === "COMPLETED" && (
+                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                        <h3 className="text-sm font-black text-gray-900 uppercase mb-4 flex items-center gap-2">
+                            <Star size={18} className="text-amber-500 fill-amber-500" /> Đánh giá dịch vụ
+                        </h3>
+                        {isLoadingRating ? (
+                            <div className="flex justify-center py-8">
+                                <div className="w-8 h-8 border-4 border-green-200 border-t-green-600 rounded-full animate-spin" />
+                            </div>
+                        ) : rating ? (
+                            <RatingDisplay
+                                variant="cleaner"
+                                bookingId={id}
+                                rating={rating}
+                                onReplyPosted={(updated) => setRating(updated)}
+                            />
+                        ) : (
+                            <p className="text-sm font-medium text-gray-500 text-center py-6">
+                                Khách hàng chưa gửi đánh giá cho đơn này. Bạn có thể xem lại sau trong lịch sử đơn.
+                            </p>
+                        )}
+                    </div>
+                )}
             </main>
 
             {/* Bottom Actions */}

@@ -2,6 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import * as CleanerController from '../../controllers/CleanerController.js';
 import * as BookingController from '../../controllers/BookingController.js';
+import * as RatingController from '../../controllers/RatingController.js';
 
 import * as CleanerMiddleware from '../../middlewares/CleanerMiddleware.js';
 
@@ -33,5 +34,8 @@ cleanerRouter.post('/accept-booking/:id', CleanerMiddleware.protect, BookingCont
 cleanerRouter.get('/get-booking-detail/:id', CleanerMiddleware.protect, BookingController.getBookingDetailForCleaner);
 cleanerRouter.get('/get-booking-in-progress', CleanerMiddleware.protect, BookingController.getInProgressBookingsForCleaner);
 cleanerRouter.post('/check-in-and-check-out/:id', CleanerMiddleware.protect, BookingController.checkInAndCheckOut);
+
+cleanerRouter.get('/get-rating/:bookingId', CleanerMiddleware.protect, RatingController.getRatingForCleaner);
+cleanerRouter.patch('/reply-rating/:bookingId', CleanerMiddleware.protect, RatingController.replyToBookingRating);
 
 export default cleanerRouter;

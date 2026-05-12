@@ -8,6 +8,8 @@ import {
     Navigation, CheckCircle2, Circle, X, Send,
     Maximize2, Cpu, Zap, Calendar, Banknote
 } from "lucide-react";
+import { RatingModal } from "./components/RatingModal";
+import { RatingDisplay } from "./components/RatingDisplay";
 
 // ==========================================
 // 1. TỪ ĐIỂN MAPPING (Đã update theo Backend của sếp)
@@ -54,6 +56,13 @@ export const ClientOrderDetail = () => {
     const [selectedReason, setSelectedReason] = useState("");
     const [customReason, setCustomReason] = useState("");
     const [isCancelling, setIsCancelling] = useState(false);
+
+    // ==========================================
+    // STATE CHO RATING
+    // ==========================================
+    const [rating, setRating] = useState(null);
+    const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
+    const [isLoadingRating, setIsLoadingRating] = useState(false);
 
     // Khởi tạo hiệu ứng AOS
     useEffect(() => {
@@ -126,6 +135,41 @@ export const ClientOrderDetail = () => {
 
         fetchOrderDetail();
     }, [id]);
+
+    // ==========================================
+    // FETCH RATING KHI ORDER ĐÃ COMPLETED
+    // ==========================================
+    useEffect(() => {
+        if (!order || order.status !== 'Completed') return;
+
+        const fetchRating = async () => {
+            setIsLoadingRating(true);
+            try {
+                const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
+                const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
+
+                const response = await fetch(`${API_URL}/get-rating/${id}`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    setRating(result.data);
+                } else if (response.status === 404) {
+                    // Chưa có rating → hiển thị modal
+                    setIsRatingModalOpen(true);
+                    setRating(null);
+                }
+            } catch (err) {
+                console.error("Error fetching rating:", err);
+            } finally {
+                setIsLoadingRating(false);
+            }
+        };
+
+        fetchRating();
+    }, [order, id]);
 
     // ==========================================
     // 3. UI HELPERS 
@@ -373,6 +417,18 @@ export const ClientOrderDetail = () => {
                                     <p className="text-2xl font-black text-green-600">{order.totalPrice.toLocaleString()}đ</p>
                                 </div>
                             </div>
+
+                            {/* RATING SECTION - Hiển thị khi Completed */}
+                            {order.status === 'Completed' && !isLoadingRating && (
+                                <div className="pt-6 border-t border-slate-100 pl-4">
+                                    <RatingDisplay
+                                        rating={rating}
+                                        variant="client"
+                                        onRatingUpdated={(updatedRating) => setRating(updatedRating)}
+                                        onRatingDeleted={() => setRating(null)}
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         {/* NÚT HỦY ĐƠN HÀNG (Chỉ hiện khi Waiting hoặc Accepted) */}
@@ -541,6 +597,18 @@ export const ClientOrderDetail = () => {
                     </div>
                 </div>
             )}
+
+            {/* RATING MODAL - Popup khi Completed & chưa có rating */}
+            <RatingModal 
+                isOpen={isRatingModalOpen}
+                onClose={() => setIsRatingModalOpen(false)}
+                bookingId={id}
+                cleanerName={order?.cleaner?.name || "thợ"}
+                onRatingSubmitted={(newRating) => {
+                    setRating(newRating);
+                    setIsRatingModalOpen(false);
+                }}
+            />
         </div>
     );
 };

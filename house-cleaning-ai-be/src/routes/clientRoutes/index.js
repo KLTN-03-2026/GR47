@@ -4,6 +4,7 @@ import * as ClientController from '../../controllers/ClientController.js';
 import * as AIController from '../../controllers/AIController.js';
 import * as ClientMiddleware from '../../middlewares/ClientMiddleware.js';
 import * as BookingController from '../../controllers/BookingController.js';
+import * as RatingController from '../../controllers/RatingController.js';
 
 const clientRouter = express.Router();
 
@@ -30,4 +31,12 @@ clientRouter.get('/get-my-addresses', ClientMiddleware.protect, ClientController
 clientRouter.post('/add-address', ClientMiddleware.protect, ClientController.addAddress);
 clientRouter.post('/change-password', ClientMiddleware.protect, ClientController.changePassword);
 clientRouter.post('/request-change-password-otp', ClientMiddleware.protect, ClientController.requestChangePasswordOTP);
+
+// Rating Routes
+clientRouter.post('/create-rating/:bookingId', ClientMiddleware.protect, RatingController.createRating);
+clientRouter.get('/get-rating/:bookingId', ClientMiddleware.protect, RatingController.getRating);
+clientRouter.patch('/update-rating/:ratingId', ClientMiddleware.protect, RatingController.updateRating);
+clientRouter.delete('/delete-rating/:ratingId', ClientMiddleware.protect, RatingController.deleteRating);
+clientRouter.get('/cleaner-ratings/:cleanerId', ClientMiddleware.protect, RatingController.getCleanerRatings);
+
 export default clientRouter;
