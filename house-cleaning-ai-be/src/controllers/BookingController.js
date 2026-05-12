@@ -7,6 +7,55 @@ import Cleaner from '../models/CleanerModel.js';
 import { creditCleanerForCompletedBooking } from '../services/walletSettlement.js';
 import WalletTransaction from '../models/WalletTransactionModel.js';
 
+const isIPayMethod = (paymentStatus) =>
+    Number(paymentStatus) === Number(PAYMENT_STATUS.PAID); // FE đang dùng "2" = iPay
+
+const refundableStatusForClient = (bookingStatus) => {
+    const s = Number(bookingStatus);
+    return s === Number(BOOKING_STATUS.WAITING) || s === Number(BOOKING_STATUS.ACCEPTED);
+};
+
+const refundableStatusForCleaner = (bookingStatus) => {
+    const s = Number(bookingStatus);
+    return s === Number(BOOKING_STATUS.ACCEPTED); // cleaner chỉ hủy khi đang di chuyển
+};
+
+async function refundClientForBooking({ booking, session }) {
+    if (!booking) return { refunded: false };
+    if (!isIPayMethod(booking.Payment_Status)) return { refunded: false };
+    if (booking.Refund_Settled === true) return { refunded: false };
+
+    const amount = Math.max(0, Math.floor(Number(booking.Total_Amount) || 0));
+    if (!amount) {
+        booking.Refund_Settled = true;
+        await booking.save({ session });
+        return { refunded: false };
+    }
+
+    const client = await Client.findById(booking.Client_Id).session(session);
+    if (!client) {
+        // Nếu mất client thì vẫn không đánh dấu refund, để admin xử lý sau
+        return { refunded: false };
+    }
+
+    client.IPay_Balance = (Number(client.IPay_Balance) || 0) + amount;
+    await client.save({ session });
+
+    await WalletTransaction.create([{
+        User_Type: 'client',
+        User_Id: booking.Client_Id,
+        Category: 'REFUND',
+        Amount: amount,
+        Description: `Hoàn tiền đơn #${String(booking._id).slice(-6).toUpperCase()} (iPay)`,
+        Related_Booking_Id: booking._id
+    }], { session });
+
+    booking.Refund_Settled = true;
+    await booking.save({ session });
+
+    return { refunded: true, amount };
+}
+
 export const createBooking = async (req, res) => {
     const session = await mongoose.startSession();
     try {
@@ -119,6 +168,120 @@ export const createBooking = async (req, res) => {
             message: 'Lưu đơn hàng thất bại. Check lại logic DB.',
             error: error.message
         });
+    } finally {
+        await session.endSession();
+    }
+};
+
+export const cancelBookingByClient = async (req, res) => {
+    const session = await mongoose.startSession();
+    try {
+        const bookingId = req.params.id;
+        const clientId = req.user?.id;
+        const reason = String(req.body?.Cancel_Reason || '').trim();
+
+        if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+            return res.status(400).json({ success: false, message: 'Mã đơn hàng không hợp lệ' });
+        }
+
+        let refunded = false;
+        let refundAmount = 0;
+
+        await session.withTransaction(async () => {
+            const booking = await Booking.findOne({ _id: bookingId, Client_Id: clientId }).session(session);
+            if (!booking) {
+                const err = new Error('NOT_FOUND');
+                err.code = 'NOT_FOUND';
+                throw err;
+            }
+
+            if (!refundableStatusForClient(booking.Booking_Status)) {
+                const err = new Error('NOT_CANCELLABLE');
+                err.code = 'NOT_CANCELLABLE';
+                throw err;
+            }
+
+            booking.Booking_Status = BOOKING_STATUS.CANCELLED;
+            if (reason) booking.Cancel_Reason = reason.slice(0, 500);
+            await booking.save({ session });
+
+            const ref = await refundClientForBooking({ booking, session });
+            refunded = ref.refunded;
+            refundAmount = ref.amount || 0;
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: refunded
+                ? `Hủy đơn thành công. Đã hoàn ${refundAmount.toLocaleString('vi-VN')}đ về ví iPay.`
+                : 'Hủy đơn thành công.',
+        });
+    } catch (error) {
+        if (error?.code === 'NOT_FOUND') {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+        }
+        if (error?.code === 'NOT_CANCELLABLE') {
+            return res.status(400).json({ success: false, message: 'Không thể hủy đơn ở trạng thái hiện tại' });
+        }
+        console.error('cancelBookingByClient:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server khi hủy đơn', error: error.message });
+    } finally {
+        await session.endSession();
+    }
+};
+
+export const cancelBookingByCleaner = async (req, res) => {
+    const session = await mongoose.startSession();
+    try {
+        const bookingId = req.params.id;
+        const cleanerId = req.user?.id;
+        const reason = String(req.body?.Cancel_Reason || '').trim();
+
+        if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+            return res.status(400).json({ success: false, message: 'Mã đơn hàng không hợp lệ' });
+        }
+
+        let refunded = false;
+        let refundAmount = 0;
+
+        await session.withTransaction(async () => {
+            const booking = await Booking.findOne({ _id: bookingId, Cleaner_Id: cleanerId }).session(session);
+            if (!booking) {
+                const err = new Error('NOT_FOUND');
+                err.code = 'NOT_FOUND';
+                throw err;
+            }
+
+            if (!refundableStatusForCleaner(booking.Booking_Status)) {
+                const err = new Error('NOT_CANCELLABLE');
+                err.code = 'NOT_CANCELLABLE';
+                throw err;
+            }
+
+            booking.Booking_Status = BOOKING_STATUS.CANCELLED;
+            if (reason) booking.Cancel_Reason = reason.slice(0, 500);
+            await booking.save({ session });
+
+            const ref = await refundClientForBooking({ booking, session });
+            refunded = ref.refunded;
+            refundAmount = ref.amount || 0;
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: refunded
+                ? `Hủy đơn thành công. Đã hoàn ${refundAmount.toLocaleString('vi-VN')}đ về ví iPay cho khách.`
+                : 'Hủy đơn thành công.',
+        });
+    } catch (error) {
+        if (error?.code === 'NOT_FOUND') {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+        }
+        if (error?.code === 'NOT_CANCELLABLE') {
+            return res.status(400).json({ success: false, message: 'Không thể hủy đơn ở trạng thái hiện tại' });
+        }
+        console.error('cancelBookingByCleaner:', error);
+        return res.status(500).json({ success: false, message: 'Lỗi server khi hủy đơn', error: error.message });
     } finally {
         await session.endSession();
     }

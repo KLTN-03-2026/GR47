@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const CATEGORIES = ['DEPOSIT', 'WITHDRAW', 'SPEND', 'INCOME'];
+const CATEGORIES = ['DEPOSIT', 'WITHDRAW', 'SPEND', 'INCOME', 'REFUND'];
 
 const walletTransactionSchema = new mongoose.Schema(
     {

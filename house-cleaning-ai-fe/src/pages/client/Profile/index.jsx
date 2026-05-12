@@ -582,6 +582,7 @@ const TX_LABELS = {
     DEPOSIT: { title: "Nạp tiền", sign: "+", tone: "text-emerald-600 bg-emerald-50" },
     WITHDRAW: { title: "Rút tiền", sign: "-", tone: "text-rose-600 bg-rose-50" },
     SPEND: { title: "Tiêu / Thanh toán", sign: "-", tone: "text-amber-700 bg-amber-50" },
+    REFUND: { title: "Hoàn tiền", sign: "+", tone: "text-sky-700 bg-sky-50" },
 };
 
 const WalletTab = ({ showToast }) => {
@@ -680,6 +681,7 @@ const WalletTab = ({ showToast }) => {
         { id: "DEPOSIT", label: "Nạp" },
         { id: "WITHDRAW", label: "Rút" },
         { id: "SPEND", label: "Tiêu" },
+        { id: "REFUND", label: "Hoàn" },
     ];
 
     return (
@@ -759,7 +761,7 @@ const WalletTab = ({ showToast }) => {
                             ) : (
                                 transactions.map((tx) => {
                                     const meta = TX_LABELS[tx.Category] || { title: tx.Category, sign: "", tone: "text-gray-600 bg-gray-50" };
-                                    const isIn = tx.Category === "DEPOSIT";
+                                    const isIn = ["DEPOSIT", "REFUND"].includes(tx.Category);
                                     const amt = Number(tx.Amount) || 0;
                                     return (
                                         <li key={tx._id} className="px-6 py-4 flex items-center gap-4 hover:bg-gray-50/80 transition-colors">

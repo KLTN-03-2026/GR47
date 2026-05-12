@@ -142,7 +142,7 @@ export const getClientWalletTransactions = async (req, res) => {
 
         const filter = { User_Type: 'client', User_Id: req.user.id };
         if (category && category !== 'all') {
-            if (!['DEPOSIT', 'WITHDRAW', 'SPEND'].includes(category)) {
+            if (!['DEPOSIT', 'WITHDRAW', 'SPEND', 'REFUND'].includes(category)) {
                 return res.status(400).json({ success: false, message: 'category không hợp lệ' });
             }
             filter.Category = category;

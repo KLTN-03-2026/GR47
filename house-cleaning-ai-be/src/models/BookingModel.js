@@ -44,8 +44,19 @@ const bookingSchema = new mongoose.Schema({
         ref: 'BookingRating',
         default: null
     },
+    Cancel_Reason: {
+        type: String,
+        trim: true,
+        maxlength: 500,
+        default: ""
+    },
     /** Đã ghi nhận thu nhập cho cleaner khi đơn hoàn thành */
     Earnings_Settled: {
+        type: Boolean,
+        default: false
+    },
+    /** Đã hoàn tiền iPay cho khách khi đơn bị hủy */
+    Refund_Settled: {
         type: Boolean,
         default: false
     }

@@ -35,6 +35,7 @@ cleanerRouter.post('/accept-booking/:id', CleanerMiddleware.protect, BookingCont
 cleanerRouter.get('/get-booking-detail/:id', CleanerMiddleware.protect, BookingController.getBookingDetailForCleaner);
 cleanerRouter.get('/get-booking-in-progress', CleanerMiddleware.protect, BookingController.getInProgressBookingsForCleaner);
 cleanerRouter.post('/check-in-and-check-out/:id', CleanerMiddleware.protect, BookingController.checkInAndCheckOut);
+cleanerRouter.post('/cancel-booking/:id', CleanerMiddleware.protect, BookingController.cancelBookingByCleaner);
 
 cleanerRouter.get('/get-rating/:bookingId', CleanerMiddleware.protect, RatingController.getRatingForCleaner);
 cleanerRouter.patch('/reply-rating/:bookingId', CleanerMiddleware.protect, RatingController.replyToBookingRating);
