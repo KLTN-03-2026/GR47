@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Cropper from "react-easy-crop";
+import { useNavigate } from "react-router-dom";
 import {
     User, MapPin, Wallet, Lock, Camera,
     Plus, Trash2, Edit2, CheckCircle2, AlertCircle,
@@ -147,6 +148,7 @@ export const ClientProfile = () => {
     const [activeTab, setActiveTab] = useState("PROFILE");
     const [toast, setToast] = useState(null);
     const [isAnimating, setIsAnimating] = useState(false);
+    const navigate = useNavigate();
 
     const tabs = [
         { id: "PROFILE", label: "Hồ sơ cá nhân", icon: <User size={18} /> },
@@ -210,7 +212,13 @@ export const ClientProfile = () => {
                             {activeTab === "PROFILE" && <ProfileTab showToast={showToast} />}
                             {activeTab === "ADDRESS" && <AddressTab showToast={showToast} />}
                             {activeTab === "WALLET" && <WalletTab showToast={showToast} />}
-                            {activeTab === "NOTIFICATIONS" && <NotificationTab showToast={showToast} />}
+                            {activeTab === "NOTIFICATIONS" && (
+                                <NotificationTab
+                                    showToast={showToast}
+                                    onOpenWallet={() => handleTabChange("WALLET")}
+                                    navigate={navigate}
+                                />
+                            )}
                             {activeTab === "SECURITY" && <SecurityTab showToast={showToast} />}
                         </div>
                     </div>
@@ -843,7 +851,7 @@ const NOTIFICATION_TONE = {
     SYSTEM: "bg-slate-50 text-slate-600 border-slate-100"
 };
 
-const NotificationTab = ({ showToast }) => {
+const NotificationTab = ({ showToast, onOpenWallet, navigate }) => {
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
@@ -889,6 +897,61 @@ const NotificationTab = ({ showToast }) => {
         }
     };
 
+    const getNotificationBookingId = (notification) => {
+        const bookingId = notification?.Related_Booking_Id;
+        if (!bookingId) return null;
+        return typeof bookingId === "object" ? bookingId._id : bookingId;
+    };
+
+    const getNotificationTarget = (notification) => {
+        if (notification?.Type === "WALLET") return { type: "wallet" };
+
+        const bookingId = getNotificationBookingId(notification);
+        if (bookingId && ["BOOKING", "COMPLAINT"].includes(notification?.Type)) {
+            return { type: "booking", path: `/order-detail/${bookingId}` };
+        }
+
+        return null;
+    };
+
+    const markNotificationAsRead = async (notification) => {
+        if (notification.Is_Read) return;
+
+        setNotifications((prev) =>
+            prev.map((item) =>
+                item._id === notification._id ? { ...item, Is_Read: true } : item
+            )
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+
+        try {
+            const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
+            const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
+            const response = await fetch(`${API_URL}/notifications/${notification._id}/read`, {
+                method: "PATCH",
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.message || "KhÃ´ng thá»ƒ cáº­p nháº­t thÃ´ng bÃ¡o");
+        } catch (error) {
+            showToast("error", error.message);
+            fetchNotifications();
+        }
+    };
+
+    const handleNotificationClick = async (notification) => {
+        const target = getNotificationTarget(notification);
+
+        await markNotificationAsRead(notification);
+
+        if (target?.type === "wallet") {
+            onOpenWallet?.();
+            return;
+        }
+
+        if (target?.path) navigate(target.path);
+    };
+
     return (
         <div className="animate-fade-in max-w-4xl">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
@@ -929,23 +992,33 @@ const NotificationTab = ({ showToast }) => {
                     </div>
                 ) : (
                     <ul className="divide-y divide-gray-50 max-h-[620px] overflow-y-auto">
-                        {notifications.map((item) => (
-                            <li key={item._id} className={`px-6 py-5 flex gap-4 transition-colors ${item.Is_Read ? "bg-white" : "bg-green-50/35"}`}>
-                                <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${NOTIFICATION_TONE[item.Type] || NOTIFICATION_TONE.SYSTEM}`}>
-                                    <Bell size={20} />
-                                </div>
-                                <div className="flex-grow min-w-0">
-                                    <div className="flex items-start justify-between gap-4">
-                                        <p className="font-black text-gray-900 text-sm">{item.Title}</p>
-                                        {!item.Is_Read && <span className="w-2.5 h-2.5 rounded-full bg-green-500 mt-1.5 shrink-0"></span>}
+                        {notifications.map((item) => {
+                            const target = getNotificationTarget(item);
+
+                            return (
+                                <li key={item._id}>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleNotificationClick(item)}
+                                        className={`w-full text-left px-6 py-5 flex gap-4 transition-all duration-200 ${item.Is_Read ? "bg-white" : "bg-green-50/35"} ${target ? "cursor-pointer hover:bg-green-50 hover:shadow-sm hover:-translate-y-0.5" : "cursor-default hover:bg-gray-50"}`}
+                                    >
+                                    <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${NOTIFICATION_TONE[item.Type] || NOTIFICATION_TONE.SYSTEM}`}>
+                                        <Bell size={20} />
                                     </div>
-                                    <p className="text-sm text-gray-600 font-medium mt-1 leading-relaxed">{item.Message}</p>
-                                    <p className="text-xs text-gray-400 font-bold mt-2">
-                                        {new Date(item.createdAt).toLocaleString("vi-VN")}
-                                    </p>
-                                </div>
-                            </li>
-                        ))}
+                                    <div className="flex-grow min-w-0">
+                                        <div className="flex items-start justify-between gap-4">
+                                            <p className="font-black text-gray-900 text-sm">{item.Title}</p>
+                                            {!item.Is_Read && <span className="w-2.5 h-2.5 rounded-full bg-green-500 mt-1.5 shrink-0"></span>}
+                                        </div>
+                                        <p className="text-sm text-gray-600 font-medium mt-1 leading-relaxed">{item.Message}</p>
+                                        <p className="text-xs text-gray-400 font-bold mt-2">
+                                            {new Date(item.createdAt).toLocaleString("vi-VN")}
+                                        </p>
+                                    </div>
+                                    </button>
+                                </li>
+                            );
+                        })}
                     </ul>
                 )}
             </div>

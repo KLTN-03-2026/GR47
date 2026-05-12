@@ -101,6 +101,51 @@ export const CleanerHeader = () => {
         }
     };
 
+    const getNotificationBookingId = (notification) => {
+        const bookingId = notification?.Related_Booking_Id;
+        if (!bookingId) return null;
+        return typeof bookingId === "object" ? bookingId._id : bookingId;
+    };
+
+    const getNotificationPath = (notification) => {
+        if (notification?.Type === "WALLET") return "/cleaner/earning";
+
+        const bookingId = getNotificationBookingId(notification);
+        if (bookingId && ["BOOKING", "COMPLAINT"].includes(notification?.Type)) {
+            return `/cleaner/order-progress/${bookingId}`;
+        }
+
+        return null;
+    };
+
+    const handleNotificationClick = async (notification) => {
+        const targetPath = getNotificationPath(notification);
+
+        if (!notification.Is_Read) {
+            setNotifications((prev) =>
+                prev.map((item) =>
+                    item._id === notification._id ? { ...item, Is_Read: true } : item
+                )
+            );
+            setUnreadCount((prev) => Math.max(0, prev - 1));
+
+            try {
+                const API_URL = import.meta.env.VITE_API_BASE_CLEANER_URL;
+                const token = localStorage.getItem("cleaner_token") || sessionStorage.getItem("cleaner_token");
+                await fetch(`${API_URL}/notifications/${notification._id}/read`, {
+                    method: "PATCH",
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            } catch (error) {
+                console.error("Lá»—i Ä‘Ã¡nh dáº¥u Ä‘á»c thÃ´ng bÃ¡o cleaner:", error);
+                fetchNotifications();
+            }
+        }
+
+        setIsNotificationOpen(false);
+        if (targetPath) navigate(targetPath);
+    };
+
     const handleLogout = () => {
         localStorage.removeItem("cleaner_token");
         localStorage.removeItem("cleaner_user");
@@ -200,21 +245,30 @@ export const CleanerHeader = () => {
                                             <p className="text-xs font-bold">Chưa có thông báo.</p>
                                         </div>
                                     ) : (
-                                        notifications.map((item) => (
-                                            <div key={item._id} className={`px-4 py-3 flex gap-3 border-b border-gray-50 last:border-b-0 ${item.Is_Read ? "bg-white" : "bg-green-50/50"}`}>
-                                                <div className="w-9 h-9 rounded-xl bg-green-50 text-green-600 border border-green-100 flex items-center justify-center shrink-0">
-                                                    <Bell size={17} />
-                                                </div>
-                                                <div className="min-w-0 flex-grow">
-                                                    <div className="flex gap-2 justify-between">
-                                                        <p className="text-sm font-black text-gray-900 truncate">{item.Title}</p>
-                                                        {!item.Is_Read && <span className="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0"></span>}
+                                        notifications.map((item) => {
+                                            const targetPath = getNotificationPath(item);
+
+                                            return (
+                                                <button
+                                                    key={item._id}
+                                                    type="button"
+                                                    onClick={() => handleNotificationClick(item)}
+                                                    className={`w-full text-left px-4 py-3 flex gap-3 border-b border-gray-50 last:border-b-0 transition-all duration-200 ${item.Is_Read ? "bg-white" : "bg-green-50/50"} ${targetPath ? "cursor-pointer hover:bg-green-50 hover:shadow-sm hover:-translate-y-0.5" : "cursor-default hover:bg-gray-50"}`}
+                                                >
+                                                    <div className="w-9 h-9 rounded-xl bg-green-50 text-green-600 border border-green-100 flex items-center justify-center shrink-0">
+                                                        <Bell size={17} />
                                                     </div>
-                                                    <p className="text-xs font-medium text-gray-600 mt-1 leading-relaxed">{item.Message}</p>
-                                                    <p className="text-[10px] font-bold text-gray-400 mt-1">{new Date(item.createdAt).toLocaleString("vi-VN")}</p>
-                                                </div>
-                                            </div>
-                                        ))
+                                                    <div className="min-w-0 flex-grow">
+                                                        <div className="flex gap-2 justify-between">
+                                                            <p className="text-sm font-black text-gray-900 truncate">{item.Title}</p>
+                                                            {!item.Is_Read && <span className="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0"></span>}
+                                                        </div>
+                                                        <p className="text-xs font-medium text-gray-600 mt-1 leading-relaxed">{item.Message}</p>
+                                                        <p className="text-[10px] font-bold text-gray-400 mt-1">{new Date(item.createdAt).toLocaleString("vi-VN")}</p>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })
                                     )}
                                 </div>
                             </div>

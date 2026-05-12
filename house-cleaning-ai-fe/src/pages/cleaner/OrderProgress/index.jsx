@@ -56,6 +56,8 @@ export const CleanerOrderProgress = () => {
 
     const [rating, setRating] = useState(null);
     const [isLoadingRating, setIsLoadingRating] = useState(false);
+    const [complaint, setComplaint] = useState(null);
+    const [isLoadingComplaint, setIsLoadingComplaint] = useState(false);
 
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [inputText, setInputText] = useState("");
@@ -87,6 +89,18 @@ export const CleanerOrderProgress = () => {
         if (num === 3) return "IN_PROGRESS";
         if (num === 4) return "COMPLETED";
         return "MOVING";
+    };
+
+    const getComplaintStatusLabel = (status) => {
+        if (status === "RESOLVED") return "ÄÃ£ xá»­ lÃ½";
+        if (status === "REJECTED") return "Tá»« chá»‘i";
+        return "Chá» xá»­ lÃ½";
+    };
+
+    const getComplaintStatusClass = (status) => {
+        if (status === "RESOLVED") return "bg-emerald-100 text-emerald-700";
+        if (status === "REJECTED") return "bg-slate-200 text-slate-600";
+        return "bg-orange-100 text-orange-700";
     };
 
     // ==========================================
@@ -154,6 +168,34 @@ export const CleanerOrderProgress = () => {
 
         fetchRating();
     }, [workStatus, id]);
+
+    useEffect(() => {
+        if (!id) return;
+
+        const fetchComplaint = async () => {
+            setIsLoadingComplaint(true);
+            try {
+                const API_URL = import.meta.env.VITE_API_BASE_CLEANER_URL;
+                const token = localStorage.getItem("cleaner_token") || sessionStorage.getItem("cleaner_token");
+                const response = await fetch(`${API_URL}/complaints/booking/${id}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    setComplaint(result.data);
+                } else {
+                    setComplaint(null);
+                }
+            } catch {
+                setComplaint(null);
+            } finally {
+                setIsLoadingComplaint(false);
+            }
+        };
+
+        fetchComplaint();
+    }, [id]);
 
     // ==========================================
     // 4. API GỌI CHECK-IN VÀ CHECK-OUT
@@ -341,6 +383,63 @@ export const CleanerOrderProgress = () => {
                         <p className="text-lg font-black text-green-600">{orderData.income?.toLocaleString()}đ</p>
                     </div>
                 </div>
+
+                {isLoadingComplaint ? (
+                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
+                        <div className="h-5 w-40 bg-gray-100 rounded-full animate-pulse mb-3" />
+                        <div className="h-4 w-full bg-gray-100 rounded-full animate-pulse" />
+                    </div>
+                ) : complaint && (
+                    <div className="bg-orange-50 p-5 rounded-3xl border border-orange-100 shadow-sm">
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-white rounded-2xl text-orange-600 border border-orange-100">
+                                    <AlertTriangle size={20} />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Khiáº¿u náº¡i cá»§a khÃ¡ch</p>
+                                    <h3 className="text-sm font-black text-orange-900 mt-0.5">{complaint.Reason}</h3>
+                                </div>
+                            </div>
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shrink-0 ${getComplaintStatusClass(complaint.Status)}`}>
+                                {getComplaintStatusLabel(complaint.Status)}
+                            </span>
+                        </div>
+
+                        {complaint.Detail && (
+                            <p className="text-sm font-medium text-orange-900/80 leading-relaxed mb-3">
+                                {complaint.Detail}
+                            </p>
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="bg-white/70 rounded-2xl border border-orange-100 p-3">
+                                <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest">ÄÃ¡nh giÃ¡ khi gá»­i</p>
+                                <p className="text-sm font-black text-orange-900 mt-1">{complaint.Stars}/5 sao</p>
+                            </div>
+                            <div className="bg-white/70 rounded-2xl border border-orange-100 p-3">
+                                <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest">NgÃ y gá»­i</p>
+                                <p className="text-sm font-black text-orange-900 mt-1">
+                                    {new Date(complaint.createdAt).toLocaleString("vi-VN")}
+                                </p>
+                            </div>
+                        </div>
+
+                        {complaint.Comment && (
+                            <div className="mt-3 bg-white/70 rounded-2xl border border-orange-100 p-3">
+                                <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-1">BÃ¬nh luáº­n cá»§a khÃ¡ch</p>
+                                <p className="text-sm font-medium text-orange-900/80 leading-relaxed">{complaint.Comment}</p>
+                            </div>
+                        )}
+
+                        {complaint.Admin_Note && (
+                            <div className="mt-3 bg-white rounded-2xl border border-orange-100 p-3">
+                                <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-1">Pháº£n há»“i admin</p>
+                                <p className="text-sm font-medium text-orange-900/80 leading-relaxed">{complaint.Admin_Note}</p>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
                     <h3 className="text-sm font-black text-gray-900 uppercase mb-6">Tiến trình công việc</h3>
