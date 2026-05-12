@@ -6,6 +6,7 @@ import * as ClientMiddleware from '../../middlewares/ClientMiddleware.js';
 import * as BookingController from '../../controllers/BookingController.js';
 import * as RatingController from '../../controllers/RatingController.js';
 import * as WalletController from '../../controllers/WalletController.js';
+import * as ComplaintController from '../../controllers/ComplaintController.js';
 
 const clientRouter = express.Router();
 
@@ -40,6 +41,8 @@ clientRouter.get('/get-rating/:bookingId', ClientMiddleware.protect, RatingContr
 clientRouter.patch('/update-rating/:ratingId', ClientMiddleware.protect, RatingController.updateRating);
 clientRouter.delete('/delete-rating/:ratingId', ClientMiddleware.protect, RatingController.deleteRating);
 clientRouter.get('/cleaner-ratings/:cleanerId', ClientMiddleware.protect, RatingController.getCleanerRatings);
+clientRouter.post('/complaints/cleaner/:bookingId', ClientMiddleware.protect, ComplaintController.createCleanerComplaint);
+clientRouter.get('/complaints/booking/:bookingId', ClientMiddleware.protect, ComplaintController.getMyComplaintByBooking);
 
 // CleanAI iPay — ví khách hàng
 clientRouter.get('/ipay-wallet', ClientMiddleware.protect, WalletController.getClientWallet);

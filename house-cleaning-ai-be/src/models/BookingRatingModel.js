@@ -52,6 +52,10 @@ const bookingRatingSchema = new mongoose.Schema({
     Is_Editable: {
         type: Boolean,
         default: true // true nếu < 7 ngày, false nếu ≥ 7 ngày
+    },
+    Is_Hidden: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true

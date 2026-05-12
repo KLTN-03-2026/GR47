@@ -6,7 +6,7 @@ import {
     ChevronLeft, MessageCircle, UserX, Star, Phone,
     MapPin, Clock, CreditCard, ShieldCheck, AlertTriangle,
     Navigation, CheckCircle2, Circle, X, Send,
-    Maximize2, Cpu, Zap, Calendar, Banknote
+    Maximize2, Cpu, Zap, Calendar, Banknote, Info, Flag
 } from "lucide-react";
 import { RatingModal } from "./components/RatingModal";
 import { RatingDisplay } from "./components/RatingDisplay";
@@ -41,6 +41,15 @@ const CANCEL_REASONS = [
     "Lý do khác..."
 ];
 
+const COMPLAINT_REASONS = [
+    "Người dọn đến muộn",
+    "Dọn dẹp không sạch như cam kết",
+    "Thái độ phục vụ chưa tốt",
+    "Làm hư hỏng hoặc thất lạc tài sản",
+    "Tự ý phát sinh chi phí",
+    "Lý do khác..."
+];
+
 export const ClientOrderDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -63,6 +72,18 @@ export const ClientOrderDetail = () => {
     const [rating, setRating] = useState(null);
     const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
     const [isLoadingRating, setIsLoadingRating] = useState(false);
+
+    const [complaint, setComplaint] = useState(null);
+    const [isCleanerModalOpen, setIsCleanerModalOpen] = useState(false);
+    const [isComplaintModalOpen, setIsComplaintModalOpen] = useState(false);
+    const [complaintStars, setComplaintStars] = useState(0);
+    const [complaintHoverStar, setComplaintHoverStar] = useState(0);
+    const [complaintComment, setComplaintComment] = useState("");
+    const [complaintReason, setComplaintReason] = useState("");
+    const [complaintCustomReason, setComplaintCustomReason] = useState("");
+    const [complaintDetail, setComplaintDetail] = useState("");
+    const [isSubmittingComplaint, setIsSubmittingComplaint] = useState(false);
+    const [complaintError, setComplaintError] = useState("");
 
     // Khởi tạo hiệu ứng AOS
     useEffect(() => {
@@ -106,11 +127,13 @@ export const ClientOrderDetail = () => {
                         notes: data.Notes,
 
                         cleaner: data.Cleaner_Id ? {
+                            id: data.Cleaner_Id._id,
                             name: data.Cleaner_Id.Name || data.Cleaner_Id.Full_Name,
                             phone: data.Cleaner_Id.Phone || data.Cleaner_Id.Phone_Number,
                             avatar: data.Cleaner_Id.Avatar || "https://placehold.co/150",
-                            rating: 4.9,
-                            jobs: 125
+                            rating: data.Cleaner_Id.Rating || 5,
+                            address: data.Cleaner_Id.Address || "Chưa cập nhật",
+                            joinedAt: data.Cleaner_Id.createdAt,
                         } : null,
 
                         aiDetails: data.AI_Details ? {
@@ -169,6 +192,32 @@ export const ClientOrderDetail = () => {
         };
 
         fetchRating();
+    }, [order, id]);
+
+    useEffect(() => {
+        if (!order || order.status !== 'Completed') return;
+
+        const fetchComplaint = async () => {
+            try {
+                const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
+                const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
+
+                const response = await fetch(`${API_URL}/complaints/booking/${id}`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+
+                const result = await response.json();
+                if (response.ok && result.success) {
+                    setComplaint(result.data);
+                } else if (response.status === 404) {
+                    setComplaint(null);
+                }
+            } catch (err) {
+                console.error("Error fetching complaint:", err);
+            }
+        };
+
+        fetchComplaint();
     }, [order, id]);
 
     // ==========================================
@@ -255,6 +304,67 @@ export const ClientOrderDetail = () => {
             alert(error.message);
         } finally {
             setIsCancelling(false);
+        }
+    };
+
+    const openComplaintModal = () => {
+        setComplaintStars(rating?.Stars || 0);
+        setComplaintComment(rating?.Comment || "");
+        setComplaintReason("");
+        setComplaintCustomReason("");
+        setComplaintDetail("");
+        setComplaintError("");
+        setIsComplaintModalOpen(true);
+    };
+
+    const handleSubmitComplaint = async () => {
+        const finalReason = complaintReason === "Lý do khác..." ? complaintCustomReason.trim() : complaintReason;
+
+        if (!complaintStars) {
+            setComplaintError("Vui lòng chọn số sao đánh giá người dọn.");
+            return;
+        }
+        if (!finalReason) {
+            setComplaintError("Vui lòng chọn hoặc nhập lý do khiếu nại.");
+            return;
+        }
+
+        setIsSubmittingComplaint(true);
+        setComplaintError("");
+
+        try {
+            const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
+            const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
+
+            const response = await fetch(`${API_URL}/complaints/cleaner/${id}`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    stars: complaintStars,
+                    comment: complaintComment,
+                    reason: finalReason,
+                    detail: complaintDetail
+                })
+            });
+
+            const result = await response.json();
+            if (response.ok && result.success) {
+                setComplaint(result.data);
+                setIsComplaintModalOpen(false);
+                setIsCleanerModalOpen(true);
+                if (!rating && result.data?.Rating_Id) {
+                    setRating(result.data.Rating_Id);
+                }
+            } else {
+                setComplaintError(result.message || "Không thể gửi khiếu nại lúc này.");
+            }
+        } catch (error) {
+            setComplaintError("Lỗi kết nối: " + error.message);
+        } finally {
+            setIsSubmittingComplaint(false);
         }
     };
 
@@ -467,10 +577,21 @@ export const ClientOrderDetail = () => {
                                     <p className="text-sm font-bold text-slate-500 mt-2 bg-slate-50 px-3 py-1 rounded-lg border border-slate-100 flex items-center gap-2">
                                         <Phone size={14} className="text-slate-400" /> {order.cleaner.phone}
                                     </p>
+                                    <div className="mt-3 flex items-center gap-1 text-amber-500 font-black text-sm">
+                                        <Star size={16} className="fill-amber-400" />
+                                        {Number(order.cleaner.rating || 5).toFixed(1)}
+                                    </div>
+
+                                    <button
+                                        onClick={() => setIsCleanerModalOpen(true)}
+                                        className="w-full mt-6 py-3 bg-emerald-50 text-emerald-700 rounded-2xl font-black hover:bg-emerald-100 transition-all active:scale-95 flex items-center justify-center gap-2 border border-emerald-100"
+                                    >
+                                        <Info size={18} /> Xem thông tin
+                                    </button>
 
                                     <button
                                         onClick={() => setIsChatOpen(true)}
-                                        className="w-full mt-8 py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-black transition-all shadow-lg shadow-slate-900/20 active:scale-95 flex items-center justify-center gap-2"
+                                        className="w-full mt-3 py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-black transition-all shadow-lg shadow-slate-900/20 active:scale-95 flex items-center justify-center gap-2"
                                     >
                                         <MessageCircle size={20} /> Nhắn tin cho thợ
                                     </button>
@@ -541,6 +662,199 @@ export const ClientOrderDetail = () => {
                                     className="flex-1 py-3.5 bg-red-600 text-white font-bold rounded-xl shadow-lg shadow-red-600/20 hover:bg-red-700 active:scale-95 transition-all flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                                 >
                                     {isCancelling ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : "Xác nhận Hủy"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isCleanerModalOpen && order.cleaner && (
+                <div className="fixed inset-0 z-[190] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white w-full max-w-lg rounded-[2rem] overflow-hidden shadow-2xl border border-slate-200 animate-fade-in-up">
+                        <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-emerald-50/60">
+                            <h3 className="font-black text-slate-900 text-lg flex items-center gap-2">
+                                <ShieldCheck size={20} className="text-emerald-600" /> Thông tin người dọn
+                            </h3>
+                            <button onClick={() => setIsCleanerModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-white rounded-full transition-all">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-5">
+                            <div className="flex items-center gap-4">
+                                <img src={order.cleaner.avatar} alt="Cleaner avatar" className="w-20 h-20 rounded-3xl object-cover ring-4 ring-emerald-50 shadow-sm" />
+                                <div className="min-w-0">
+                                    <h4 className="text-xl font-black text-slate-900 truncate">{order.cleaner.name}</h4>
+                                    <p className="text-sm font-bold text-slate-500 flex items-center gap-2 mt-1">
+                                        <Phone size={14} /> {order.cleaner.phone}
+                                    </p>
+                                    <div className="mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-100 text-xs font-black">
+                                        <Star size={14} className="fill-amber-400" /> {Number(order.cleaner.rating || 5).toFixed(1)} / 5.0
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Địa chỉ</p>
+                                    <p className="text-sm font-bold text-slate-800">{order.cleaner.address}</p>
+                                </div>
+                                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tham gia</p>
+                                    <p className="text-sm font-bold text-slate-800">
+                                        {order.cleaner.joinedAt ? new Date(order.cleaner.joinedAt).toLocaleDateString("vi-VN") : "Chưa cập nhật"}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {complaint ? (
+                                <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <p className="text-sm font-black text-orange-700 flex items-center gap-2">
+                                            <Flag size={16} /> Đã gửi khiếu nại
+                                        </p>
+                                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                            complaint.Status === "RESOLVED" ? "bg-emerald-100 text-emerald-700" :
+                                            complaint.Status === "REJECTED" ? "bg-slate-200 text-slate-600" :
+                                            "bg-orange-100 text-orange-700"
+                                        }`}>
+                                            {complaint.Status === "RESOLVED" ? "Đã xử lý" : complaint.Status === "REJECTED" ? "Từ chối" : "Chờ xử lý"}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs font-bold text-orange-900 mt-2">{complaint.Reason}</p>
+                                    {complaint.Detail && <p className="text-xs text-orange-900/80 mt-1">{complaint.Detail}</p>}
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => {
+                                        setIsCleanerModalOpen(false);
+                                        openComplaintModal();
+                                    }}
+                                    disabled={order.status !== "Completed"}
+                                    className="w-full py-4 bg-orange-50 text-orange-700 rounded-2xl font-black hover:bg-orange-500 hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2 border border-orange-100 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-orange-50 disabled:hover:text-orange-700"
+                                >
+                                    <Flag size={20} /> Khiếu nại người dọn
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isComplaintModalOpen && (
+                <div className="fixed inset-0 z-[210] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white w-full max-w-lg rounded-[2rem] overflow-hidden shadow-2xl border border-slate-200 animate-fade-in-up">
+                        <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-orange-50/70">
+                            <div>
+                                <h3 className="font-black text-orange-700 text-lg flex items-center gap-2">
+                                    <Flag size={20} /> Khiếu nại người dọn
+                                </h3>
+                                <p className="text-xs font-bold text-slate-500 mt-1">Đánh giá và mô tả vấn đề với {order.cleaner?.name}</p>
+                            </div>
+                            <button onClick={() => setIsComplaintModalOpen(false)} disabled={isSubmittingComplaint} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-white rounded-full transition-all disabled:opacity-50">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+                            <div>
+                                <label className="block text-sm font-black text-slate-700 mb-3">Đánh giá người dọn</label>
+                                <div className="flex justify-center gap-2">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <button
+                                            key={star}
+                                            type="button"
+                                            onClick={() => setComplaintStars(star)}
+                                            onMouseEnter={() => setComplaintHoverStar(star)}
+                                            onMouseLeave={() => setComplaintHoverStar(0)}
+                                            className="p-1 transition-transform hover:scale-110"
+                                        >
+                                            <Star
+                                                size={34}
+                                                className={star <= (complaintHoverStar || complaintStars) ? "text-amber-400 fill-amber-400" : "text-slate-200"}
+                                            />
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-black text-slate-700 mb-2">Bình luận đánh giá</label>
+                                <textarea
+                                    value={complaintComment}
+                                    onChange={(e) => setComplaintComment(e.target.value.slice(0, 300))}
+                                    placeholder="Nhận xét ngắn về trải nghiệm của bạn..."
+                                    rows={3}
+                                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm font-medium resize-none"
+                                />
+                                <p className="text-xs text-slate-400 mt-1">{complaintComment.length}/300 ký tự</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-black text-slate-700 mb-3">Lý do khiếu nại</label>
+                                <div className="space-y-2">
+                                    {COMPLAINT_REASONS.map((reason) => (
+                                        <label key={reason} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors">
+                                            <input
+                                                type="radio"
+                                                name="complaintReason"
+                                                value={reason}
+                                                checked={complaintReason === reason}
+                                                onChange={(e) => setComplaintReason(e.target.value)}
+                                                className="w-4 h-4 accent-orange-500"
+                                            />
+                                            <span className={`text-sm font-bold ${complaintReason === reason ? "text-orange-700" : "text-slate-700"}`}>
+                                                {reason}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {complaintReason === "Lý do khác..." && (
+                                <textarea
+                                    value={complaintCustomReason}
+                                    onChange={(e) => setComplaintCustomReason(e.target.value.slice(0, 120))}
+                                    placeholder="Nhập lý do khiếu nại..."
+                                    rows={2}
+                                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm font-medium resize-none"
+                                />
+                            )}
+
+                            <div>
+                                <label className="block text-sm font-black text-slate-700 mb-2">Chi tiết khiếu nại</label>
+                                <textarea
+                                    value={complaintDetail}
+                                    onChange={(e) => setComplaintDetail(e.target.value.slice(0, 500))}
+                                    placeholder="Mô tả rõ hơn để admin kiểm tra nhanh hơn..."
+                                    rows={4}
+                                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm font-medium resize-none"
+                                />
+                                <p className="text-xs text-slate-400 mt-1">{complaintDetail.length}/500 ký tự</p>
+                            </div>
+
+                            {complaintError && (
+                                <div className="p-3 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-bold">
+                                    {complaintError}
+                                </div>
+                            )}
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    onClick={() => setIsComplaintModalOpen(false)}
+                                    disabled={isSubmittingComplaint}
+                                    className="flex-1 py-3.5 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-all disabled:opacity-50"
+                                >
+                                    Đóng
+                                </button>
+                                <button
+                                    onClick={handleSubmitComplaint}
+                                    disabled={isSubmittingComplaint || !complaintStars || !complaintReason || (complaintReason === "Lý do khác..." && !complaintCustomReason.trim())}
+                                    className="flex-1 py-3.5 bg-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-600/20 hover:bg-orange-700 active:scale-95 transition-all flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {isSubmittingComplaint ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Send size={18} />}
+                                    Gửi khiếu nại
                                 </button>
                             </div>
                         </div>

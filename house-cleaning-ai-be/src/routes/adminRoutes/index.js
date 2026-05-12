@@ -5,6 +5,7 @@ import * as CleanerController from '../../controllers/CleanerController.js';
 import * as AIConfigController from '../../controllers/AIConfigController.js';
 import * as StatisficsController from '../../controllers/StatisticsController.js';
 import * as BookingController from '../../controllers/BookingController.js';
+import * as ComplaintController from '../../controllers/ComplaintController.js';
 
 import * as AdminMiddleware from '../../middlewares/AdminMiddleware.js';
 
@@ -24,5 +25,7 @@ adminRouter.post('/reject-cleaner/:id', AdminMiddleware.protect, CleanerControll
 adminRouter.post('/lock-and-unlock-cleaner/:id', AdminMiddleware.protect, CleanerController.lockAndUnlockCleaner);
 adminRouter.post('/lock-and-unlock-client/:id', AdminMiddleware.protect, ClientController.lockAndUnlockClient);
 adminRouter.get('/get-all-bookings', AdminMiddleware.protect, BookingController.getAllBookings)
+adminRouter.get('/complaints', AdminMiddleware.protect, ComplaintController.getAllComplaints);
+adminRouter.patch('/complaints/:id/resolve', AdminMiddleware.protect, ComplaintController.resolveComplaint);
 // adminRouter.get('/revenue-stastics', AdminMiddleware.protect, StatisficsController.getRevenueStatistics);
 export default adminRouter;

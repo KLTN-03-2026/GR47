@@ -321,7 +321,7 @@ export const getBookingDetailsById = async (req, res) => {
             _id: bookingId,
             Client_Id: clientId
         })
-            .populate('Cleaner_Id', 'Name Phone Avatar')
+            .populate('Cleaner_Id', 'Name Phone Avatar Full_Name Phone_Number Rating Address createdAt')
             .lean();
 
         if (!booking) {
