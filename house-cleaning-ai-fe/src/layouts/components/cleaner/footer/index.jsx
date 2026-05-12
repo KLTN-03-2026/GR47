@@ -16,7 +16,7 @@ export const CleanerFooter = () => {
                     <Briefcase size={22} />
                     <span className="text-[10px] font-bold uppercase">Đơn hàng</span>
                 </NavLink>
-                <NavLink to="/cleaner/earnings" className={navLinkClass}>
+                <NavLink to="/cleaner/earning" className={navLinkClass}>
                     <BarChart3 size={22} />
                     <span className="text-[10px] font-bold uppercase">Thu nhập</span>
                 </NavLink>

@@ -3,6 +3,7 @@ import multer from 'multer';
 import * as CleanerController from '../../controllers/CleanerController.js';
 import * as BookingController from '../../controllers/BookingController.js';
 import * as RatingController from '../../controllers/RatingController.js';
+import * as WalletController from '../../controllers/WalletController.js';
 
 import * as CleanerMiddleware from '../../middlewares/CleanerMiddleware.js';
 
@@ -37,5 +38,9 @@ cleanerRouter.post('/check-in-and-check-out/:id', CleanerMiddleware.protect, Boo
 
 cleanerRouter.get('/get-rating/:bookingId', CleanerMiddleware.protect, RatingController.getRatingForCleaner);
 cleanerRouter.patch('/reply-rating/:bookingId', CleanerMiddleware.protect, RatingController.replyToBookingRating);
+
+cleanerRouter.get('/earning-wallet', CleanerMiddleware.protect, WalletController.getCleanerWallet);
+cleanerRouter.post('/earning-withdraw', CleanerMiddleware.protect, WalletController.withdrawCleanerWallet);
+cleanerRouter.get('/earning-transactions', CleanerMiddleware.protect, WalletController.getCleanerWalletTransactions);
 
 export default cleanerRouter;

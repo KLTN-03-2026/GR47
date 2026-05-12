@@ -3,7 +3,8 @@ import Cropper from "react-easy-crop";
 import {
     User, MapPin, Wallet, Lock, Camera,
     Plus, Trash2, Edit2, CheckCircle2, AlertCircle,
-    Calendar, Mail, Phone, Settings, Check, X, ZoomIn, ZoomOut, KeyRound, ChevronLeft
+    Calendar, Mail, Phone, Settings, Check, X, ZoomIn, ZoomOut, KeyRound, ChevronLeft,
+    ArrowDownToLine, ArrowUpFromLine, History, Loader2, CreditCard
 } from "lucide-react";
 
 // ==========================================
@@ -575,20 +576,258 @@ const AddressTab = ({ showToast }) => {
 };
 
 // ==========================================
-// TAB 3: VÍ
+// TAB 3: VÍ CLEANAI IPAY
 // ==========================================
-const WalletTab = () => (
-    <div className="animate-fade-in">
-        <h2 className="text-2xl font-black text-gray-900 mb-2">Ví CleanAI iPay</h2>
-        <p className="text-gray-500 text-sm mb-10">Thanh toán nhanh chóng.</p>
-        <div className="w-full max-w-[400px] h-56 bg-gradient-to-br from-green-600 to-teal-800 rounded-[2.5rem] p-8 text-white relative overflow-hidden">
-            <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-1">Số dư khả dụng</p>
-            <h3 className="text-4xl font-black">1.250.000đ</h3>
-            <div className="absolute bottom-8 left-8"><p className="text-[10px] font-bold opacity-70 uppercase">Account Holder</p><p className="font-bold tracking-widest">NGUYEN VAN A</p></div>
-            <Wallet className="absolute -right-4 -bottom-4 w-32 h-32 opacity-10" />
+const TX_LABELS = {
+    DEPOSIT: { title: "Nạp tiền", sign: "+", tone: "text-emerald-600 bg-emerald-50" },
+    WITHDRAW: { title: "Rút tiền", sign: "-", tone: "text-rose-600 bg-rose-50" },
+    SPEND: { title: "Tiêu / Thanh toán", sign: "-", tone: "text-amber-700 bg-amber-50" },
+};
+
+const WalletTab = ({ showToast }) => {
+    const [loading, setLoading] = useState(true);
+    const [balance, setBalance] = useState(0);
+    const [accountHolder, setAccountHolder] = useState("");
+    const [transactions, setTransactions] = useState([]);
+    const [filter, setFilter] = useState("all");
+
+    const [modal, setModal] = useState(null); // 'deposit' | 'withdraw' | null
+    const [amountInput, setAmountInput] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+
+    const fetchWalletData = async () => {
+        const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
+        const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
+        if (!token) {
+            showToast("error", "Vui lòng đăng nhập lại.");
+            return;
+        }
+        const q = filter === "all" ? "" : `?category=${filter}`;
+        const [wRes, tRes] = await Promise.all([
+            fetch(`${API_URL}/ipay-wallet`, { headers: { Authorization: `Bearer ${token}` } }),
+            fetch(`${API_URL}/ipay-transactions${q}`, { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+        const wJson = await wRes.json();
+        const tJson = await tRes.json();
+        if (wRes.ok && wJson.success) {
+            setBalance(wJson.data.balance ?? 0);
+            setAccountHolder(wJson.data.accountHolder || "");
+        } else if (!wRes.ok) {
+            showToast("error", wJson.message || "Không tải được số dư ví.");
+        }
+        if (tRes.ok && tJson.success) {
+            setTransactions(tJson.data.transactions || []);
+        }
+    };
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            setLoading(true);
+            try {
+                await fetchWalletData();
+            } catch (e) {
+                if (!cancelled) showToast("error", e.message || "Không tải được ví.");
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filter]);
+
+    const handleOpenModal = (type) => {
+        setAmountInput("");
+        setModal(type);
+    };
+
+    const handleSubmitModal = async () => {
+        const raw = String(amountInput).replace(/\D/g, "");
+        const amount = parseInt(raw, 10);
+        if (!amount || amount < 10000) {
+            showToast("error", "Số tiền tối thiểu 10.000đ.");
+            return;
+        }
+        const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
+        const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
+        setSubmitting(true);
+        try {
+            const path = modal === "deposit" ? "ipay-deposit" : "ipay-withdraw";
+            const res = await fetch(`${API_URL}/${path}`, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ amount }),
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success) throw new Error(json.message || "Thao tác thất bại.");
+            setBalance(json.data.balance ?? 0);
+            setAccountHolder(json.data.accountHolder || accountHolder);
+            showToast("success", json.message);
+            setModal(null);
+            await fetchWalletData();
+        } catch (e) {
+            showToast("error", e.message);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const filterChips = [
+        { id: "all", label: "Tất cả" },
+        { id: "DEPOSIT", label: "Nạp" },
+        { id: "WITHDRAW", label: "Rút" },
+        { id: "SPEND", label: "Tiêu" },
+    ];
+
+    return (
+        <div className="animate-fade-in max-w-3xl">
+            <h2 className="text-2xl font-black text-gray-900 mb-2">Ví CleanAI iPay</h2>
+            <p className="text-gray-500 text-sm mb-8">
+                Nạp, rút và theo dõi giao dịch ví điện tử nội bộ (demo kết nối backend).
+            </p>
+
+            {loading ? (
+                <div className="flex flex-col items-center justify-center py-24 gap-4">
+                    <Loader2 className="w-10 h-10 text-green-600 animate-spin" />
+                    <p className="text-sm font-bold text-gray-400">Đang tải ví...</p>
+                </div>
+            ) : (
+                <>
+                    <div className="w-full max-w-[420px] h-56 bg-gradient-to-br from-green-600 to-teal-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-xl shadow-green-900/20 mb-8">
+                        <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-1 relative z-10">Số dư khả dụng</p>
+                        <h3 className="text-3xl sm:text-4xl font-black relative z-10 tracking-tight">
+                            {balance.toLocaleString("vi-VN")}<span className="text-lg font-bold text-green-100 ml-1">đ</span>
+                        </h3>
+                        <div className="absolute bottom-8 left-8 right-8 z-10">
+                            <p className="text-[10px] font-bold opacity-70 uppercase tracking-widest">Account holder</p>
+                            <p className="font-black tracking-wide text-sm sm:text-base truncate">
+                                {(accountHolder || "KHÁCH HÀNG").toUpperCase()}
+                            </p>
+                        </div>
+                        <Wallet className="absolute -right-4 -bottom-4 w-32 h-32 opacity-10" />
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3 mb-10 max-w-[420px]">
+                        <button
+                            type="button"
+                            onClick={() => handleOpenModal("deposit")}
+                            className="flex-1 py-4 rounded-2xl font-black text-sm bg-gray-900 text-white hover:bg-black active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg"
+                        >
+                            <ArrowDownToLine size={20} /> Nạp tiền
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleOpenModal("withdraw")}
+                            className="flex-1 py-4 rounded-2xl font-black text-sm bg-white border-2 border-gray-200 text-gray-900 hover:border-green-500 hover:text-green-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                        >
+                            <ArrowUpFromLine size={20} /> Rút tiền
+                        </button>
+                    </div>
+
+                    <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
+                        <div className="px-6 py-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div className="flex items-center gap-2">
+                                <History size={20} className="text-green-600" />
+                                <h3 className="font-black text-gray-900">Lịch sử giao dịch</h3>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {filterChips.map((c) => (
+                                    <button
+                                        key={c.id}
+                                        type="button"
+                                        onClick={() => setFilter(c.id)}
+                                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-all ${
+                                            filter === c.id
+                                                ? "bg-green-600 text-white shadow-md"
+                                                : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                        }`}
+                                    >
+                                        {c.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <ul className="divide-y divide-gray-50 max-h-[420px] overflow-y-auto">
+                            {transactions.length === 0 ? (
+                                <li className="px-6 py-12 text-center text-sm font-medium text-gray-400">
+                                    Chưa có giao dịch trong mục này. Thanh toán đơn bằng iPay sẽ hiển thị ở mục &quot;Tiêu&quot;.
+                                </li>
+                            ) : (
+                                transactions.map((tx) => {
+                                    const meta = TX_LABELS[tx.Category] || { title: tx.Category, sign: "", tone: "text-gray-600 bg-gray-50" };
+                                    const isIn = tx.Category === "DEPOSIT";
+                                    const amt = Number(tx.Amount) || 0;
+                                    return (
+                                        <li key={tx._id} className="px-6 py-4 flex items-center gap-4 hover:bg-gray-50/80 transition-colors">
+                                            <div className={`p-3 rounded-2xl shrink-0 ${meta.tone}`}>
+                                                <CreditCard size={20} />
+                                            </div>
+                                            <div className="flex-grow min-w-0">
+                                                <p className="font-bold text-gray-900 text-sm truncate">{meta.title}</p>
+                                                <p className="text-xs text-gray-400 font-medium mt-0.5">
+                                                    {tx.Description || "—"}{" "}
+                                                    <span className="text-gray-300">·</span>{" "}
+                                                    {new Date(tx.createdAt).toLocaleString("vi-VN")}
+                                                </p>
+                                            </div>
+                                            <span className={`font-black text-sm shrink-0 ${isIn ? "text-emerald-600" : "text-rose-600"}`}>
+                                                {isIn ? "+" : "-"}{amt.toLocaleString("vi-VN")}đ
+                                            </span>
+                                        </li>
+                                    );
+                                })
+                            )}
+                        </ul>
+                    </div>
+                </>
+            )}
+
+            {modal && (
+                <div className="fixed inset-0 z-[200] bg-gray-900/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden animate-fade-in-up">
+                        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center">
+                            <h3 className="font-black text-gray-900 text-lg">
+                                {modal === "deposit" ? "Nạp tiền vào ví" : "Rút tiền về tài khoản"}
+                            </h3>
+                            <button type="button" onClick={() => !submitting && setModal(null)} className="p-2 rounded-full hover:bg-gray-100 text-gray-500">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-5">
+                            <p className="text-sm text-gray-500 font-medium">
+                                Số tiền tối thiểu 10.000đ / tối đa 100.000.000đ mỗi lần (số nguyên).
+                            </p>
+                            <div>
+                                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Số tiền (VNĐ)</label>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="VD: 500000"
+                                    value={amountInput}
+                                    onChange={(e) => setAmountInput(e.target.value.replace(/[^\d]/g, ""))}
+                                    className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl font-black text-lg outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500"
+                                    disabled={submitting}
+                                />
+                            </div>
+                            <button
+                                type="button"
+                                disabled={submitting}
+                                onClick={handleSubmitModal}
+                                className="w-full py-4 rounded-2xl font-black text-white bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/25 disabled:opacity-60 flex justify-center items-center gap-2"
+                            >
+                                {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : modal === "deposit" ? "Xác nhận nạp" : "Xác nhận rút"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
-    </div>
-);
+    );
+};
 
 // ==========================================
 // TAB 4: BẢO MẬT (ĐỔI MẬT KHẨU)

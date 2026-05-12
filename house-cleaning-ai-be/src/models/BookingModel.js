@@ -43,6 +43,11 @@ const bookingSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'BookingRating',
         default: null
+    },
+    /** Đã ghi nhận thu nhập cho cleaner khi đơn hoàn thành */
+    Earnings_Settled: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true

@@ -75,7 +75,13 @@ export const CleanerHeader = () => {
                 <div className="hidden sm:flex items-center gap-4 border-r border-gray-100 pr-6">
                     <div className="text-right">
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">Ví của tôi</p>
-                        <p className="text-sm font-bold text-gray-900">0đ</p>
+                        <p className="text-sm font-bold text-gray-900">
+                            {(cleanerInfo?.Wallet_Balance != null
+                                ? Number(cleanerInfo.Wallet_Balance)
+                                : 0
+                            ).toLocaleString("vi-VN")}
+                            đ
+                        </p>
                     </div>
                     <div className="text-right">
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">

@@ -32,6 +32,13 @@ const CleanerSchema = new Schema(
             required: true,
             enum: Object.values(CLEANER_STATUS),
             default: CLEANER_STATUS.ACTIVE
+        },
+
+        /** Số dư ví thu nhập (VNĐ) */
+        Wallet_Balance: {
+            type: Number,
+            default: 0,
+            min: 0
         }
     },
     { timestamps: true }

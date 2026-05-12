@@ -58,6 +58,13 @@ const ClientSchema = new Schema(
             enum: Object.values(CLIENTSTATUS) 
         },
 
+        /** Số dư ví CleanAI iPay (VNĐ) */
+        IPay_Balance: {
+            type: Number,
+            default: 0,
+            min: 0
+        },
+
         // --- HỖ TRỢ OTP KHÔI PHỤC MẬT KHẨU ---
         Reset_OTP: { type: String },
         Reset_OTP_Expiry: { type: Date }

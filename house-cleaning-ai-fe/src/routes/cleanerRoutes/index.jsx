@@ -12,6 +12,7 @@ import { CleanerLoginPage } from "../../pages/cleaner/Login/index.jsx";
 import { CleanerWallet } from "../../pages/cleaner/Wallet/index.jsx";
 import { CleanerProfile } from "../../pages/cleaner/Profile/index.jsx";
 import { CleanerTaskList } from "../../pages/cleaner/CleanerTaskList/index.jsx";
+import { CleanerEarning } from "../../pages/cleaner/Earning/index.jsx";
 
 // ==========================================
 // CHỐT BẢO VỆ TÍCH HỢP (CLEANER GUARDS)
@@ -53,6 +54,8 @@ export const cleanerRoutes = [
                     },
                     { path: "cancel-order/:id", element: <CleanerCancelOrder /> },
                     { path: "wallet", element: <CleanerWallet /> },
+                    { path: "earning", element: <CleanerEarning /> },
+                    { path: "earnings", element: <Navigate to="/cleaner/earning" replace /> },
                     { path: "profile", element: <CleanerProfile /> },
                 ],
             },

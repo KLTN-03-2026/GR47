@@ -4,8 +4,11 @@ import BookingDetail from '../models/BookingDetailModel.js';
 import { BOOKING_STATUS, PAYMENT_STATUS } from '../utils/statusUtils.js';
 import Client from '../models/ClientModel.js';
 import Cleaner from '../models/CleanerModel.js';
+import { creditCleanerForCompletedBooking } from '../services/walletSettlement.js';
+import WalletTransaction from '../models/WalletTransactionModel.js';
 
 export const createBooking = async (req, res) => {
+    const session = await mongoose.startSession();
     try {
         console.log(">>> Middleware trả về user:", req.user);
 
@@ -26,40 +29,98 @@ export const createBooking = async (req, res) => {
             Image_Url,
             Area_m2,
             Mess_Level,
-            Price
+            Price,
+            Payment_Method,
+            Payment_Status: PaymentStatusFromClient
         } = req.body;
 
-        const newBooking = await Booking.create({
-            Client_Id,
-            Total_Amount,
-            Service_Date: new Date(Service_Date),
-            Service_Address,
-            Notes: Notes || "",
-            Booking_Status: BOOKING_STATUS.WAITING,
-            Payment_Status: PAYMENT_STATUS.UNPAID
-        });
+        const totalAmountNumber = Math.max(0, Math.floor(Number(Total_Amount) || 0));
+        if (!totalAmountNumber) {
+            return res.status(400).json({ success: false, message: 'Tổng tiền không hợp lệ' });
+        }
 
-        const newBookingDetail = await BookingDetail.create({
-            Booking_Id: newBooking._id,
-            Image_Url,
-            Area_m2,
-            Mess_Level,
-            Price
+        // FE hiện gửi Payment_Method: 1=cash, 2=iPay. Một số nơi dùng Payment_Status.
+        const paymentMethodOrStatus = Payment_Method ?? PaymentStatusFromClient ?? PAYMENT_STATUS.UNPAID;
+        const payStatus = String(paymentMethodOrStatus);
+        const isIPay = Number(payStatus) === Number(PAYMENT_STATUS.PAID); // "2" = iPay
+
+        let newBookingId;
+
+        await session.withTransaction(async () => {
+            // Nếu thanh toán iPay thì trừ ví trước (atomic)
+            if (isIPay) {
+                const client = await Client.findById(Client_Id).session(session);
+                if (!client) {
+                    const err = new Error('CLIENT_NOT_FOUND');
+                    err.code = 'CLIENT_NOT_FOUND';
+                    throw err;
+                }
+
+                const bal = Number(client.IPay_Balance || 0);
+                if (bal < totalAmountNumber) {
+                    const err = new Error('INSUFFICIENT_WALLET');
+                    err.code = 'INSUFFICIENT_WALLET';
+                    throw err;
+                }
+
+                client.IPay_Balance = bal - totalAmountNumber;
+                await client.save({ session });
+            }
+
+            const newBooking = await Booking.create([{
+                Client_Id,
+                Total_Amount: totalAmountNumber,
+                Service_Date: new Date(Service_Date),
+                Service_Address,
+                Notes: Notes || "",
+                Booking_Status: BOOKING_STATUS.WAITING,
+                // Payment_Status đang được FE dùng như "phương thức thanh toán": 1=cash, 2=iPay
+                Payment_Status: isIPay ? PAYMENT_STATUS.PAID : PAYMENT_STATUS.UNPAID
+            }], { session });
+
+            const bookingDoc = newBooking?.[0];
+            newBookingId = bookingDoc._id;
+
+            await BookingDetail.create([{
+                Booking_Id: bookingDoc._id,
+                Image_Url,
+                Area_m2,
+                Mess_Level,
+                Price
+            }], { session });
+
+            if (isIPay) {
+                await WalletTransaction.create([{
+                    User_Type: 'client',
+                    User_Id: Client_Id,
+                    Category: 'SPEND',
+                    Amount: totalAmountNumber,
+                    Description: `Thanh toán đơn #${String(bookingDoc._id).slice(-6).toUpperCase()} bằng iPay`,
+                    Related_Booking_Id: bookingDoc._id
+                }], { session });
+            }
         });
 
         return res.status(201).json({
             success: true,
             message: '🚀 Chốt đơn thành công! Đang đợi thợ nhận việc.',
-            bookingId: newBooking._id
+            bookingId: newBookingId
         });
-
     } catch (error) {
-        console.error("❌ Lỗi lưu DB:", error.message);
+        if (error?.code === 'INSUFFICIENT_WALLET') {
+            return res.status(400).json({ success: false, message: 'Số dư ví không đủ để thanh toán' });
+        }
+        if (error?.code === 'CLIENT_NOT_FOUND') {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản khách hàng' });
+        }
+        console.error("❌ Lỗi lưu DB:", error);
         return res.status(500).json({
             success: false,
             message: 'Lưu đơn hàng thất bại. Check lại logic DB.',
             error: error.message
         });
+    } finally {
+        await session.endSession();
     }
 };
 
@@ -451,6 +512,14 @@ export const checkInAndCheckOut = async (req, res) => {
 
         booking.Booking_Status = newStatus;
         await booking.save();
+
+        if (Number(newStatus) === Number(BOOKING_STATUS.COMPLETED)) {
+            try {
+                await creditCleanerForCompletedBooking(booking._id);
+            } catch (settleErr) {
+                console.error('❌ Ghi nhận thu nhập cleaner:', settleErr);
+            }
+        }
 
         return res.status(200).json({
             success: true,
