@@ -4,6 +4,7 @@ import {
     ChevronLeft, Wallet, ArrowUpFromLine, Loader2, AlertCircle,
     TrendingUp, History, Banknote
 } from "lucide-react";
+import { useCleanerRefresh } from "../../../context/CleanerContext.jsx";
 
 const categoryMeta = (cat) => {
     if (cat === "INCOME") return { label: "Thu nhập", sign: "+", chip: "bg-emerald-50 text-emerald-700" };
@@ -13,6 +14,7 @@ const categoryMeta = (cat) => {
 
 export const CleanerEarning = () => {
     const navigate = useNavigate();
+    const { triggerCleanerRefresh } = useCleanerRefresh();
     const [status, setStatus] = useState("loading");
     const [balance, setBalance] = useState(0);
     const [accountHolder, setAccountHolder] = useState("");
@@ -74,6 +76,8 @@ export const CleanerEarning = () => {
             setWithdrawOpen(false);
             setAmountInput("");
             await fetchAll();
+            // Trigger header refresh khi rút tiền thành công
+            triggerCleanerRefresh();
         } catch (e) {
             alert(e.message);
         } finally {

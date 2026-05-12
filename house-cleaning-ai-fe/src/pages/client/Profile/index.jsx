@@ -4,7 +4,7 @@ import {
     User, MapPin, Wallet, Lock, Camera,
     Plus, Trash2, Edit2, CheckCircle2, AlertCircle,
     Calendar, Mail, Phone, Settings, Check, X, ZoomIn, ZoomOut, KeyRound, ChevronLeft,
-    ArrowDownToLine, ArrowUpFromLine, History, Loader2, CreditCard
+    ArrowDownToLine, ArrowUpFromLine, History, Loader2, CreditCard, Bell, Inbox, CheckCheck
 } from "lucide-react";
 
 // ==========================================
@@ -152,6 +152,7 @@ export const ClientProfile = () => {
         { id: "PROFILE", label: "Hồ sơ cá nhân", icon: <User size={18} /> },
         { id: "ADDRESS", label: "Sổ địa chỉ", icon: <MapPin size={18} /> },
         { id: "WALLET", label: "Ví CleanAI iPay", icon: <Wallet size={18} /> },
+        { id: "NOTIFICATIONS", label: "Thông Báo", icon: <Bell size={18} /> },
         { id: "SECURITY", label: "Bảo mật", icon: <Lock size={18} /> },
     ];
 
@@ -209,6 +210,7 @@ export const ClientProfile = () => {
                             {activeTab === "PROFILE" && <ProfileTab showToast={showToast} />}
                             {activeTab === "ADDRESS" && <AddressTab showToast={showToast} />}
                             {activeTab === "WALLET" && <WalletTab showToast={showToast} />}
+                            {activeTab === "NOTIFICATIONS" && <NotificationTab showToast={showToast} />}
                             {activeTab === "SECURITY" && <SecurityTab showToast={showToast} />}
                         </div>
                     </div>
@@ -832,7 +834,127 @@ const WalletTab = ({ showToast }) => {
 };
 
 // ==========================================
-// TAB 4: BẢO MẬT (ĐỔI MẬT KHẨU)
+// TAB 4: THÔNG BÁO
+// ==========================================
+const NOTIFICATION_TONE = {
+    BOOKING: "bg-blue-50 text-blue-600 border-blue-100",
+    WALLET: "bg-emerald-50 text-emerald-600 border-emerald-100",
+    COMPLAINT: "bg-orange-50 text-orange-600 border-orange-100",
+    SYSTEM: "bg-slate-50 text-slate-600 border-slate-100"
+};
+
+const NotificationTab = ({ showToast }) => {
+    const [notifications, setNotifications] = useState([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [isLoading, setIsLoading] = useState(true);
+
+    const fetchNotifications = async () => {
+        setIsLoading(true);
+        try {
+            const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
+            const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
+            const response = await fetch(`${API_URL}/notifications?limit=80`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.message || "Không thể tải thông báo");
+            setNotifications(result.data.notifications || []);
+            setUnreadCount(result.data.unreadCount || 0);
+        } catch (error) {
+            showToast("error", error.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchNotifications();
+    }, []);
+
+    const markAllAsRead = async () => {
+        try {
+            const API_URL = import.meta.env.VITE_API_BASE_CLIENT_URL;
+            const token = localStorage.getItem("client_token") || sessionStorage.getItem("client_token");
+            const response = await fetch(`${API_URL}/notifications/read-all`, {
+                method: "PATCH",
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.message || "Không thể cập nhật thông báo");
+            setNotifications((prev) => prev.map((item) => ({ ...item, Is_Read: true })));
+            setUnreadCount(0);
+            showToast("success", "Đã đánh dấu tất cả thông báo là đã đọc");
+        } catch (error) {
+            showToast("error", error.message);
+        }
+    };
+
+    return (
+        <div className="animate-fade-in max-w-4xl">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+                <div>
+                    <h2 className="text-2xl font-black text-gray-900 mb-2">Thông Báo</h2>
+                    <p className="text-gray-500 text-sm">Theo dõi đơn hàng, ví iPay, hoàn tiền và khiếu nại của bạn.</p>
+                </div>
+                <button
+                    type="button"
+                    onClick={markAllAsRead}
+                    disabled={!unreadCount}
+                    className="px-4 py-3 rounded-2xl bg-gray-900 text-white text-sm font-black hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                    <CheckCheck size={18} /> Đánh dấu đã đọc
+                </button>
+            </div>
+
+            <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Bell size={20} className="text-green-600" />
+                        <h3 className="font-black text-gray-900">Tất cả thông báo</h3>
+                    </div>
+                    <span className="px-3 py-1 rounded-full bg-green-50 text-green-700 text-xs font-black">
+                        {unreadCount} chưa đọc
+                    </span>
+                </div>
+
+                {isLoading ? (
+                    <div className="py-20 flex flex-col items-center text-gray-400">
+                        <Loader2 className="w-10 h-10 animate-spin mb-3" />
+                        <p className="text-sm font-bold">Đang tải thông báo...</p>
+                    </div>
+                ) : notifications.length === 0 ? (
+                    <div className="py-20 flex flex-col items-center text-gray-400">
+                        <Inbox className="w-12 h-12 mb-3 text-gray-300" />
+                        <p className="text-sm font-bold">Chưa có thông báo nào.</p>
+                    </div>
+                ) : (
+                    <ul className="divide-y divide-gray-50 max-h-[620px] overflow-y-auto">
+                        {notifications.map((item) => (
+                            <li key={item._id} className={`px-6 py-5 flex gap-4 transition-colors ${item.Is_Read ? "bg-white" : "bg-green-50/35"}`}>
+                                <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${NOTIFICATION_TONE[item.Type] || NOTIFICATION_TONE.SYSTEM}`}>
+                                    <Bell size={20} />
+                                </div>
+                                <div className="flex-grow min-w-0">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <p className="font-black text-gray-900 text-sm">{item.Title}</p>
+                                        {!item.Is_Read && <span className="w-2.5 h-2.5 rounded-full bg-green-500 mt-1.5 shrink-0"></span>}
+                                    </div>
+                                    <p className="text-sm text-gray-600 font-medium mt-1 leading-relaxed">{item.Message}</p>
+                                    <p className="text-xs text-gray-400 font-bold mt-2">
+                                        {new Date(item.createdAt).toLocaleString("vi-VN")}
+                                    </p>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// ==========================================
+// TAB 5: BẢO MẬT (ĐỔI MẬT KHẨU)
 // ==========================================
 const SecurityTab = ({ showToast }) => {
     const [step, setStep] = useState(1);

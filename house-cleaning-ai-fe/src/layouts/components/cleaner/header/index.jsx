@@ -1,12 +1,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Bell, User, Star, ShieldCheck, LogOut, Loader2 } from "lucide-react";
+import { Bell, User, Star, ShieldCheck, LogOut, Loader2, CheckCheck, Inbox } from "lucide-react";
+import { useCleanerRefresh } from "../../../../context/CleanerContext.jsx";
 
 export const CleanerHeader = () => {
     const navigate = useNavigate();
+    const { cleanerRefreshTrigger } = useCleanerRefresh();
 
     const [cleanerInfo, setCleanerInfo] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+    const [notifications, setNotifications] = useState([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
 
     useEffect(() => {
         const verifyCleaner = async () => {
@@ -44,7 +50,56 @@ export const CleanerHeader = () => {
         };
 
         verifyCleaner();
+    }, [cleanerRefreshTrigger]);
+
+    const fetchNotifications = async () => {
+        setIsLoadingNotifications(true);
+        try {
+            const API_URL = import.meta.env.VITE_API_BASE_CLEANER_URL;
+            const token = localStorage.getItem("cleaner_token") || sessionStorage.getItem("cleaner_token");
+            const response = await fetch(`${API_URL}/notifications?limit=30`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                setNotifications(result.data.notifications || []);
+                setUnreadCount(result.data.unreadCount || 0);
+            }
+        } catch (error) {
+            console.error("Lỗi tải thông báo cleaner:", error);
+        } finally {
+            setIsLoadingNotifications(false);
+        }
+    };
+
+    useEffect(() => {
+        const token = localStorage.getItem("cleaner_token") || sessionStorage.getItem("cleaner_token");
+        if (token) fetchNotifications();
     }, []);
+
+    const handleToggleNotifications = () => {
+        const nextOpen = !isNotificationOpen;
+        setIsNotificationOpen(nextOpen);
+        if (nextOpen) fetchNotifications();
+    };
+
+    const handleMarkAllRead = async () => {
+        try {
+            const API_URL = import.meta.env.VITE_API_BASE_CLEANER_URL;
+            const token = localStorage.getItem("cleaner_token") || sessionStorage.getItem("cleaner_token");
+            const response = await fetch(`${API_URL}/notifications/read-all`, {
+                method: "PATCH",
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                setNotifications((prev) => prev.map((item) => ({ ...item, Is_Read: true })));
+                setUnreadCount(0);
+            }
+        } catch (error) {
+            console.error("Lỗi cập nhật thông báo cleaner:", error);
+        }
+    };
 
     const handleLogout = () => {
         localStorage.removeItem("cleaner_token");
@@ -101,10 +156,70 @@ export const CleanerHeader = () => {
 
                 <div className="flex items-center gap-2 sm:gap-3">
                     {/* Thông báo */}
-                    <button className="p-2 text-gray-400 hover:text-green-600 transition-colors relative">
-                        <Bell size={20} />
-                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-                    </button>
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={handleToggleNotifications}
+                            className="p-2 text-gray-400 hover:text-green-600 transition-colors relative"
+                        >
+                            <Bell size={20} />
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-black rounded-full border-2 border-white flex items-center justify-center">
+                                    {unreadCount > 9 ? "9+" : unreadCount}
+                                </span>
+                            )}
+                        </button>
+
+                        {isNotificationOpen && (
+                            <div className="absolute right-0 top-12 w-[340px] max-w-[calc(100vw-24px)] bg-white border border-gray-100 rounded-2xl shadow-2xl overflow-hidden z-[80] animate-fade-in-up">
+                                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/80">
+                                    <div>
+                                        <p className="font-black text-gray-900 text-sm">Thông báo</p>
+                                        <p className="text-[11px] font-bold text-gray-400">{unreadCount} chưa đọc</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleMarkAllRead}
+                                        disabled={!unreadCount}
+                                        className="p-2 rounded-xl text-gray-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                                        title="Đánh dấu tất cả đã đọc"
+                                    >
+                                        <CheckCheck size={18} />
+                                    </button>
+                                </div>
+
+                                <div className="max-h-[420px] overflow-y-auto">
+                                    {isLoadingNotifications ? (
+                                        <div className="py-12 flex flex-col items-center text-gray-400">
+                                            <Loader2 className="w-8 h-8 animate-spin mb-2" />
+                                            <p className="text-xs font-bold">Đang tải...</p>
+                                        </div>
+                                    ) : notifications.length === 0 ? (
+                                        <div className="py-12 flex flex-col items-center text-gray-400">
+                                            <Inbox className="w-10 h-10 mb-2 text-gray-300" />
+                                            <p className="text-xs font-bold">Chưa có thông báo.</p>
+                                        </div>
+                                    ) : (
+                                        notifications.map((item) => (
+                                            <div key={item._id} className={`px-4 py-3 flex gap-3 border-b border-gray-50 last:border-b-0 ${item.Is_Read ? "bg-white" : "bg-green-50/50"}`}>
+                                                <div className="w-9 h-9 rounded-xl bg-green-50 text-green-600 border border-green-100 flex items-center justify-center shrink-0">
+                                                    <Bell size={17} />
+                                                </div>
+                                                <div className="min-w-0 flex-grow">
+                                                    <div className="flex gap-2 justify-between">
+                                                        <p className="text-sm font-black text-gray-900 truncate">{item.Title}</p>
+                                                        {!item.Is_Read && <span className="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0"></span>}
+                                                    </div>
+                                                    <p className="text-xs font-medium text-gray-600 mt-1 leading-relaxed">{item.Message}</p>
+                                                    <p className="text-[10px] font-bold text-gray-400 mt-1">{new Date(item.createdAt).toLocaleString("vi-VN")}</p>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
                     {/* Profile Section */}
                     <div className="flex items-center gap-3 pl-2 border-l border-gray-100 sm:border-none">
