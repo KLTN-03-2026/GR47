@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
     Server, LayoutDashboard, Users, Briefcase,
-    ClipboardList, BarChart3, Settings, LogOut
+    ClipboardList, BarChart3, Settings, LogOut, MessageSquareWarning
 } from "lucide-react";
 
 export const AdminSidebar = () => {
@@ -16,6 +16,7 @@ export const AdminSidebar = () => {
         { name: "Người dùng", path: "/admin/users", icon: Users },
         { name: "Đối tác (Cleaner)", path: "/admin/cleaners", icon: Briefcase },
         { name: "Đơn hàng", path: "/admin/orders", icon: ClipboardList },
+        { name: "Khiếu nại & Đánh giá", path: "/admin/disputes", icon: MessageSquareWarning },
         { name: "Báo cáo doanh thu", path: "/admin/reports", icon: BarChart3 },
         { name: "Cài đặt hệ thống", path: "/admin/settings", icon: Settings },
     ];
