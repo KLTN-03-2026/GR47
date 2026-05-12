@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
     ClipboardList, MapPin, Clock, Calendar,
     AlertCircle, PhoneCall, User, Play, Navigation, CheckCircle2, PackageOpen,
-    ChevronRight
+    ChevronRight, ArrowLeft
 } from "lucide-react";
 
 export const CleanerTaskList = () => {
@@ -122,7 +122,7 @@ export const CleanerTaskList = () => {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-[#f4f7f6] flex flex-col items-center justify-center animate-fade-in">
+            <div className="bg-[#f4f7f6] flex flex-col items-center justify-center py-24 animate-fade-in">
                 <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4" />
                 <p className="text-gray-400 font-bold uppercase tracking-widest text-xs animate-pulse">Đang quét Radar...</p>
             </div>
@@ -130,9 +130,19 @@ export const CleanerTaskList = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#f4f7f6] py-10 px-4 sm:px-6 lg:px-8 font-sans animate-fade-in">
-            {/* Bung lụa khung bao ngoài lên max-w-7xl thay vì max-w-3xl cũ */}
+        <div className="bg-[#f4f7f6] py-10 px-4 sm:px-6 lg:px-8 font-sans animate-fade-in">
             <div className="max-w-7xl mx-auto">
+
+                {/* Nút quay lại trang chủ */}
+                <button
+                    onClick={() => navigate('/cleaner')}
+                    className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors mb-6 group"
+                >
+                    <div className="w-8 h-8 rounded-xl bg-white border border-gray-200 flex items-center justify-center shadow-sm group-hover:shadow-md group-hover:border-gray-300 transition-all">
+                        <ArrowLeft size={16} />
+                    </div>
+                    Quay lại trang chủ
+                </button>
 
                 {/* Header & Bộ lọc dồn lên cùng 1 hàng trên màn lớn cho đỡ tốn chỗ */}
                 <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-8 gap-6">

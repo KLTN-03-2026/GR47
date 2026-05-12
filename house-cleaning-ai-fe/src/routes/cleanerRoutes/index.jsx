@@ -57,6 +57,7 @@ export const cleanerRoutes = [
                     { path: "earning", element: <CleanerEarning /> },
                     { path: "earnings", element: <Navigate to="/cleaner/earning" replace /> },
                     { path: "profile", element: <CleanerProfile /> },
+                    { path: "task-list", element: <CleanerTaskList /> },
                 ],
             },
             // Các trang đặc thù (Chi tiết đơn, tiến độ, dẫn đường) 
@@ -64,7 +65,6 @@ export const cleanerRoutes = [
             { path: "/cleaner/order-detail/:id", element: <CleanerPendingOrderDetail /> },
             { path: "/cleaner/order-progress/:id", element: <CleanerOrderProgress /> },
             { path: "/cleaner/navigate/:id", element: <CleanerNavigation /> },
-            { path: "/cleaner/task-list", element: <CleanerTaskList /> },
         ]
     },
     {
