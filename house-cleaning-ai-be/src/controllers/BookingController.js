@@ -5,6 +5,7 @@ import { BOOKING_STATUS, PAYMENT_STATUS } from '../utils/statusUtils.js';
 import Client from '../models/ClientModel.js';
 import Cleaner from '../models/CleanerModel.js';
 import { creditCleanerForCompletedBooking } from '../services/walletSettlement.js';
+import CleanerPenalty from '../models/CleanerPenaltyModel.js';
 import WalletTransaction from '../models/WalletTransactionModel.js';
 import { createNotification } from '../services/notificationService.js';
 
@@ -481,6 +482,18 @@ export const getWaitingBookingsForCleaner = async (req, res) => {
                 $unwind: "$Client_Info"
             },
             {
+                $addFields: {
+                    Estimated_Income: {
+                        $floor: {
+                            $multiply: [
+                                { $ifNull: ["$AI_Details.Price", "$Total_Amount"] },
+                                0.9
+                            ]
+                        }
+                    }
+                }
+            },
+            {
                 $sort: { createdAt: -1 }
             },
             {
@@ -542,6 +555,14 @@ export const getBookingDetailWaitingForCleaner = async (req, res) => {
                     Service_Address: 1,
                     Notes: 1,
                     createdAt: 1,
+                    Estimated_Income: {
+                        $floor: {
+                            $multiply: [
+                                { $ifNull: ["$AI_Details.Price", "$Total_Amount"] },
+                                0.9
+                            ]
+                        }
+                    },
                     AI_Details: 1,
                     Client_Name: { $ifNull: ["$Client_Data.Name", "$Client_Data.Full_Name", "N/A"] },
                     Client_Phone: { $ifNull: ["$Client_Data.Phone_Number", "Không có SĐT"] },
@@ -568,6 +589,28 @@ export const acceptBooking = async (req, res) => {
 
         if (!mongoose.Types.ObjectId.isValid(bookingId)) {
             return res.status(400).json({ success: false, message: "Mã đơn hàng không hợp lệ" });
+        }
+
+        // Kiểm tra xem Cleaner có đang bị khóa nhận đơn (do bị xử phạt) hay không
+        const now = new Date();
+        const activePenalty = await CleanerPenalty.findOne({
+            Cleaner_Id: cleanerId,
+            Is_Active: true,
+            $or: [
+                { Penalty_End_Date: { $gt: now } },
+                { Penalty_Type: 'ACCOUNT_LOCK' }
+            ]
+        });
+
+        if (activePenalty) {
+            let penaltyMessage = "Tài khoản của bạn đang bị hạn chế nhận đơn do vi phạm quy định.";
+            if (activePenalty.Penalty_Type === 'ACCOUNT_LOCK') {
+                penaltyMessage = "Tài khoản của bạn đã bị khóa vĩnh viễn. Vui lòng liên hệ quản trị viên.";
+            } else if (activePenalty.Penalty_End_Date) {
+                const minutesLeft = Math.ceil((activePenalty.Penalty_End_Date - now) / 60000);
+                penaltyMessage = `Bạn đang bị khóa nhận đơn. Vui lòng thử lại sau ${minutesLeft} phút.`;
+            }
+            return res.status(403).json({ success: false, message: penaltyMessage });
         }
 
         const updatedBooking = await Booking.findOneAndUpdate(
@@ -726,6 +769,14 @@ export const getInProgressBookingsForCleaner = async (req, res) => {
                     Notes: 1,
                     createdAt: 1,
                     updatedAt: 1,
+                    Estimated_Income: {
+                        $floor: {
+                            $multiply: [
+                                { $ifNull: ["$AI_Details.Price", "$Total_Amount"] },
+                                0.9
+                            ]
+                        }
+                    },
                     AI_Details: 1,
                     Client_Name: { $ifNull: ["$Client_Data.Name", "$Client_Data.Full_Name", "Khách hàng"] },
                     Client_Phone: { $ifNull: ["$Client_Data.Phone", "$Client_Data.Phone_Number", ""] },
@@ -867,23 +918,23 @@ export const getBookingDetailForCleaner = async (req, res) => {
         const bookingId = req.params.id;
         const cleanerId = req.user.id;
 
-        const bookingDetail = await Booking.findById(bookingId)
+        const booking = await Booking.findById(bookingId)
             .populate({
                 path: 'Client_Id',
                 select: '-Password'
-            });
+            }).lean();
 
-        if (!bookingDetail) {
+        if (!booking) {
             return res.status(404).json({
                 success: false,
                 message: "Không tìm thấy đơn hàng này! Có thể khách đã hủy hoặc xóa đơn."
             });
         }
 
-        const currentStatus = Number(bookingDetail.Booking_Status);
+        const currentStatus = Number(booking.Booking_Status);
         const isWaiting = currentStatus === 1;
 
-        const isMyJob = bookingDetail.Cleaner_Id && String(bookingDetail.Cleaner_Id) === String(cleanerId);
+        const isMyJob = booking.Cleaner_Id && String(booking.Cleaner_Id) === String(cleanerId);
 
         if (!isWaiting && !isMyJob) {
             return res.status(403).json({
@@ -892,9 +943,17 @@ export const getBookingDetailForCleaner = async (req, res) => {
             });
         }
 
+        const bookingDetail = await BookingDetail.findOne({ Booking_Id: bookingId }).lean();
+        const basePrice = bookingDetail ? bookingDetail.Price : booking.Total_Amount;
+        const estimatedIncome = Math.floor(basePrice * 0.9);
+
         return res.status(200).json({
             success: true,
-            data: bookingDetail
+            data: {
+                ...booking,
+                AI_Details: bookingDetail,
+                Estimated_Income: estimatedIncome
+            }
         });
 
     } catch (error) {

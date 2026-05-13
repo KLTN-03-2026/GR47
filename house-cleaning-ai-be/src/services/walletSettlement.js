@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Booking from '../models/BookingModel.js';
+import BookingDetail from '../models/BookingDetailModel.js';
 import Cleaner from '../models/CleanerModel.js';
 import WalletTransaction from '../models/WalletTransactionModel.js';
 import { BOOKING_STATUS } from '../utils/statusUtils.js';
@@ -31,7 +32,11 @@ export async function creditCleanerForCompletedBooking(bookingId) {
                 return;
             }
 
-            const gross = Math.max(0, Math.floor(Number(booking.Total_Amount) || 0));
+            // Lấy thông tin chi tiết để lấy giá gốc (Price), đảm bảo thu nhập cleaner không bị giảm khi khách dùng khuyến mãi
+            const bookingDetail = await BookingDetail.findOne({ Booking_Id: bookingId }).session(session);
+            const basePrice = bookingDetail ? bookingDetail.Price : booking.Total_Amount;
+
+            const gross = Math.max(0, Math.floor(Number(basePrice) || 0));
             const income = Math.floor(gross * CLEANER_INCOME_RATE);
 
             if (income > 0) {

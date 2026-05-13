@@ -175,7 +175,7 @@ export const CleanerHomePage = () => {
                                 <Marker key={order._id} position={order.location} icon={orderIcon}>
                                     <Popup className="custom-popup">
                                         <div className="p-1 cursor-pointer w-40" onClick={() => navigate(`/cleaner/order-detail/${order._id}`)}>
-                                            <p className="font-black text-sm text-slate-900 mb-1">{order.Total_Amount?.toLocaleString()}đ</p>
+                                            <p className="font-black text-sm text-slate-900 mb-1">{order.Estimated_Income?.toLocaleString()}đ</p>
                                             <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">{order.Service_Address}</p>
                                             <p className="text-xs font-bold text-green-600 mt-2">Nhấn xem chi tiết →</p>
                                         </div>
@@ -225,7 +225,7 @@ export const CleanerHomePage = () => {
                                 <div className="flex items-end justify-between pt-4 border-t border-gray-50 mt-2">
                                     <div className="flex flex-col">
                                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Thu nhập</span>
-                                        <span className="text-2xl font-black text-green-600 leading-none">{order.Total_Amount?.toLocaleString()}đ</span>
+                                        <span className="text-2xl font-black text-green-600 leading-none">{order.Estimated_Income?.toLocaleString()}đ</span>
                                     </div>
                                     <button className="bg-slate-900 text-white px-5 py-3.5 rounded-[1rem] group-hover:bg-green-600 transition-all shadow-md flex items-center gap-2 text-sm font-black active:scale-95">
                                         Nhận ngay <ChevronRight size={18} />
