@@ -90,6 +90,24 @@ export const ClientPayment = () => {
             const result = await response.json();
 
             if (response.ok && result.success) {
+                if (bookingPayload.promoCode) {
+                    try {
+                        await fetch(`${API_URL}/promo-codes/apply`, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": `Bearer ${token}`
+                            },
+                            body: JSON.stringify({
+                                code: bookingPayload.promoCode,
+                                bookingId: result.bookingId
+                            })
+                        });
+                    } catch (promoError) {
+                        console.warn("Apply promo after booking failed:", promoError);
+                    }
+                }
+
                 // Thành công: Chuyển hướng ngay sang trang chi tiết với hiệu ứng "thắng lợi"
                 navigate(`/order-detail/${result.bookingId}`, {
                     replace: true,

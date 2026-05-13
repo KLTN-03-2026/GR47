@@ -66,6 +66,11 @@ const bookingComplaintSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    Is_Hidden: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
     Resolved_Date: {
         type: Date,
         default: null
@@ -73,5 +78,8 @@ const bookingComplaintSchema = new mongoose.Schema({
 }, {
     timestamps: true
 });
+
+bookingComplaintSchema.index({ Client_Id: 1, Is_Hidden: 1 });
+bookingComplaintSchema.index({ Cleaner_Id: 1, Is_Hidden: 1 });
 
 export default mongoose.models.BookingComplaint || mongoose.model('BookingComplaint', bookingComplaintSchema);

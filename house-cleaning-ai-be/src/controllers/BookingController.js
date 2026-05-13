@@ -927,10 +927,10 @@ export const getAllBookings = async (req, res) => {
         if (search) {
             const clients = await Client.find({ Full_Name: { $regex: search, $options: 'i' } }).select('_id');
             const clientIds = clients.map(c => c._id);
-            
+
             query.$or = [
                 { Notes: { $regex: search, $options: 'i' } },
-                { Client_Id: { $in: clientIds } } 
+                { Client_Id: { $in: clientIds } }
             ];
         }
 

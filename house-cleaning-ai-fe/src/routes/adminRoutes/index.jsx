@@ -11,9 +11,9 @@ import { ApproveCleaners } from "../../pages/admin/ApproveCleaners/index.jsx";
 import { AIPriceConfig } from "../../pages/admin/AIPriceConfig/index.jsx";
 import { ManageOrders } from "../../pages/admin/ManageOrders/index.jsx";
 import { ManageDisputes } from "../../pages/admin/ManageDisputes/index.jsx";
+import { CleanerPenalties } from "../../pages/admin/CleanerPenalties/index.jsx";
 import { FinancePromotions } from "../../pages/admin/FinancePromotions/index.jsx";
 import { AdminRevenueStatistics } from "../../pages/admin/RevenueStatistics/index.jsx";
-import { path } from "framer-motion/client";
 
 // ==========================================
 // CHỐT BẢO VỆ TÍCH HỢP (ROUTE GUARDS)
@@ -82,6 +82,10 @@ export const adminRoutes = [
                     {
                         path: "disputes",
                         element: <ManageDisputes />, // Trang quản lý tranh chấp
+                    },
+                    {
+                        path: "cleaners/:cleanerId/penalties",
+                        element: <CleanerPenalties />,
                     },
                     {
                         path: "promotions",

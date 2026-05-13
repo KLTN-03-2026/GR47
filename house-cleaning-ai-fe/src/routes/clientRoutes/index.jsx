@@ -15,6 +15,7 @@ import { ClientOrderDetail } from "../../pages/client/OrderDetail/index.jsx";
 import { ClientCancelOrder } from "../../pages/client/CancelOrder/index.jsx";
 import { ClientFeedback } from "../../pages/client/Feedback/index.jsx";
 import { ClientProfile } from "../../pages/client/Profile/index.jsx";
+import { ClientWallet } from "../../pages/client/Wallet/index.jsx";
 import { ForgotPassword } from "../../pages/client/ForgotPassword/index.jsx";
 import { About } from "../../pages/client/About/index.jsx";
 import { Contact } from "../../pages/client/Contact/index.jsx";
@@ -59,6 +60,7 @@ export const clientRoutes = [
         children: [
           { path: "order-list", element: <ClientOrderList /> },
           { path: "profile", element: <ClientProfile /> },
+          { path: "wallet", element: <ClientWallet /> },
           { path: "payment", element: <ClientPayment /> },
           { path: "order-detail/:id", element: <ClientOrderDetail /> },
           { path: "cancel-order/:id", element: <ClientCancelOrder /> },

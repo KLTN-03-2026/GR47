@@ -25,7 +25,23 @@ adminRouter.post('/reject-cleaner/:id', AdminMiddleware.protect, CleanerControll
 adminRouter.post('/lock-and-unlock-cleaner/:id', AdminMiddleware.protect, CleanerController.lockAndUnlockCleaner);
 adminRouter.post('/lock-and-unlock-client/:id', AdminMiddleware.protect, ClientController.lockAndUnlockClient);
 adminRouter.get('/get-all-bookings', AdminMiddleware.protect, BookingController.getAllBookings)
+// Complaint Management Routes
 adminRouter.get('/complaints', AdminMiddleware.protect, ComplaintController.getAllComplaints);
 adminRouter.patch('/complaints/:id/resolve', AdminMiddleware.protect, ComplaintController.resolveComplaint);
+adminRouter.post('/complaints/:complaintId/penalize', AdminMiddleware.protect, ComplaintController.penalizeCleaner);
+adminRouter.post('/complaints/:complaintId/refund', AdminMiddleware.protect, ComplaintController.refundClient);
+adminRouter.post('/complaints/:complaintId/gift-promo', AdminMiddleware.protect, ComplaintController.giftPromotionCode);
+adminRouter.post('/complaints/:complaintId/hide', AdminMiddleware.protect, ComplaintController.hideComplaint);
+adminRouter.get('/complaints/:complaintId/history', AdminMiddleware.protect, ComplaintController.getComplaintHistory);
+
+// Cleaner Penalty Routes
+adminRouter.get('/cleaners/:cleanerId/penalties', AdminMiddleware.protect, ComplaintController.getCleanerPenalties);
+adminRouter.get('/cleaners/:cleanerId/active-penalties', AdminMiddleware.protect, ComplaintController.getActiveCleanerPenalties);
+adminRouter.post('/penalties/:penaltyId/lift', AdminMiddleware.protect, ComplaintController.liftPenalty);
+
+// Promotion Code Routes
+adminRouter.get('/clients/:clientId/promo-codes', AdminMiddleware.protect, ComplaintController.getClientPromoCodes);
+adminRouter.post('/promo-codes/apply', AdminMiddleware.protect, ComplaintController.applyPromotionCode);
+
 // adminRouter.get('/revenue-stastics', AdminMiddleware.protect, StatisficsController.getRevenueStatistics);
 export default adminRouter;
